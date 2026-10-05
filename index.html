@@ -252,7 +252,7 @@ td input.obs::placeholder{color:#b3b9bf}
         <div class="tablewrap"><table id="tblVentas"></table></div>
         <div class="legend">
           <b>Bono marca</b> = aporte Stellantis de la lista del mes de facturación (bono − aporte red). <b>Santander</b> = aporte financiera CC o CI. <b>Flota</b> = % Stellantis de la tabla B2B × precio lista neto + IVA.
-          <b>Adicionales</b> = bonos SELL IN u otros que se registran a mano en cada venta. <b>Diferencia</b> = bono del informe − (bonos calculados + adicionales). La forma de pago sale automática del Tipo Venta; si la cambias queda marcada en azul. Santander aplica cuando el Tipo Venta o la Entidad Crédito es Santander. ☑ marca el bono como pagado.
+          <b>Adicionales</b> = bonos SELL IN u otros que se registran a mano en cada venta. <b>Diferencia</b> = bono del informe − (bonos calculados + adicionales). La forma de pago sale automática del Tipo Venta; si la cambias queda marcada en azul. Santander aplica cuando el Tipo Venta o la Entidad Crédito es Santander, o el Tipo Venta es CREDITO sin otra financiera. ☑ marca el bono como pagado.
         </div>
       </div>
     </div>
@@ -606,8 +606,29 @@ function periodoDeVenta(v) {
 }
 function indexarPrecios(precios) {
   const m = new Map();
-  for (const p of precios) m.set(p.periodo + '|' + p.lcdv, p);
+  for (const p of precios) {
+    m.set(p.periodo + '|' + p.lcdv, p);
+    const k = '~' + p.periodo;               // lista por mes para búsqueda aproximada
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(p);
+  }
   return m;
+}
+// Busca la versión de la lista: primero código exacto; si no, el código casi idéntico
+// (mismo largo, mismo inicio de 10 caracteres y como máximo 2 caracteres distintos, sin empate).
+function buscarPrecio(idxP, periodo, codigo) {
+  if (!periodo || !codigo) return null;
+  const exacto = idxP.get(periodo + '|' + codigo);
+  if (exacto) return { p: exacto, aprox: false };
+  const lista = idxP.get('~' + periodo) || [];
+  let mejor = null, mejorD = 99, empate = false;
+  for (const p of lista) {
+    const l = p.lcdv || '';
+    if (l.length !== codigo.length || l.slice(0, 10) !== codigo.slice(0, 10)) continue;
+    let d = 0; for (let i = 0; i < l.length; i++) if (l[i] !== codigo[i]) d++;
+    if (d < mejorD) { mejor = p; mejorD = d; empate = false; } else if (d === mejorD) empate = true;
+  }
+  return mejor && mejorD <= 2 && !empate ? { p: mejor, aprox: true } : null;
 }
 function indexarB2B(b2b) {
   const m = new Map();
@@ -687,9 +708,12 @@ function formaDesdeTipoVenta(tv, match, tramoDesc) {
 function calcularBonos(v, idxP, idxB) {
   const periodo = periodoDeVenta(v);
   const res = { periodo, p: null, b2b: null, cands: {}, auto: null, clasif: null, tramo: null, marca: null, sant: null, flota: null, extra: null, total: null, dif: null, avisos: [] };
-  const p = periodo ? idxP.get(periodo + '|' + (v.codigo_version || '')) : null;
+  const bp = buscarPrecio(idxP, periodo, v.codigo_version);
+  const p = bp ? bp.p : null;
   const tv = norm(v.tipo_venta);
-  const esSant = /SANTANDER/.test(tv) || /SANTANDER/.test(norm(v.entidad_credito));
+  // Santander: Tipo Venta o Entidad Crédito Santander, o "CREDITO" sin otra financiera indicada
+  const otraFin = /FORUM|TANNER|BCI|ITAU|AUTOFIN|GLOBAL|MAF/.test(tv);
+  const esSant = /SANTANDER/.test(tv) || /SANTANDER/.test(norm(v.entidad_credito)) || (/^CREDITO\b/.test(tv) && !otraFin && !norm(v.entidad_credito));
   const sumaExtra = () => extrasDe(v).reduce((s, e) => s + (Number(e.monto) || 0), 0) || null;
   if (!p) {
     res.avisos.push(periodo ? `Sin lista de precios de ${MESES_NOMBRE[Number(periodo.slice(5, 7))]} ${periodo.slice(0, 4)} para esta versión` : 'Sin fecha');
@@ -699,6 +723,7 @@ function calcularBonos(v, idxP, idxB) {
     return res;
   }
   res.p = p;
+  if (bp.aprox) res.avisos.push(`Código del informe ${v.codigo_version} no está exacto en la lista; se usó ${p.lcdv} (${p.version})`);
   const neto = p.precio_lista_neto;
   const fb = buscarB2B(idxB, periodo, p.marca, p.key_mcv);
   if (fb) {
@@ -715,6 +740,12 @@ function calcularBonos(v, idxP, idxB) {
     for (const t of ['t1', 't2', 'gc']) { const x = res.b2b[t]; if (x !== null && x !== undefined && Math.abs(d - x) < best) { best = Math.abs(d - x); tramoDesc = t.toUpperCase(); } }
   }
   res.auto = formaDesdeTipoVenta(tv, match, tramoDesc);
+  // Crédito con Santander: si el bono del informe calza exacto con CC o con CI, se usa esa forma
+  if (esSant && (res.auto === 'CC' || res.auto === 'CI') && bi !== null && bi !== undefined) {
+    const stl = p.aporte_stl_iva || 0;
+    if (p.aporte_fin_ci_iva !== null && Math.abs(stl + p.aporte_fin_ci_iva - bi) <= TOL) res.auto = 'CI';
+    else if (p.aporte_fin_cc_iva !== null && Math.abs(stl + p.aporte_fin_cc_iva - bi) <= TOL) res.auto = 'CC';
+  }
   res.clasif = clasifGuardada(v) || res.auto;
   const c = res.clasif;
   if (c === 'CONTADO' || c === 'CC' || c === 'CI') {
