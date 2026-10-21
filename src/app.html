@@ -289,7 +289,7 @@ td input.obs::placeholder{color:#b3b9bf}
       <div class="panel">
         <div class="toolbar">
           <select id="pMes"></select>
-          <select id="pMarca"><option value="">Todas las marcas</option><option>PEUGEOT</option><option>OPEL</option><option>CITROEN</option></select>
+          <select id="pMarca"></select>
           <select id="pSeg"><option value="">Pasajeros y comerciales</option><option>PASAJEROS</option><option>COMERCIALES</option></select>
           <input id="pTxt" class="grow" placeholder="Buscar versión, CIT…">
           <button class="btn" id="pExport">Exportar Excel</button>
@@ -409,13 +409,28 @@ function opciones(sel, valores, primero, actual) {
   sel.innerHTML = (primero ? `<option value="">${primero}</option>` : '') + valores.map(v => `<option value="${esc(v.v ?? v)}">${esc(v.l ?? v)}</option>`).join('');
   if (actual !== undefined && [...sel.options].some(o => o.value === actual)) sel.value = actual;
 }
+// Filtro de marca: "Stellantis" agrupa Peugeot, Citroën y Opel
+const STELLANTIS = '__STELLANTIS';
+function coincideMarca(marca, filtro) {
+  if (!filtro) return true;
+  if (filtro === STELLANTIS) { const t = norm(marca); return t.startsWith('PEUG') || t.startsWith('OPEL') || t.startsWith('CITRO'); }
+  return marca === filtro;
+}
+function opcionesMarca(sel, marcas) {
+  const lista = [...new Set(marcas.filter(Boolean))].sort();
+  const nombre = (m) => ({ PEUGEOT: 'Peugeot', OPEL: 'Opel', CITROEN: 'Citroën', 'CITROËN': 'Citroën' }[norm(m)] || m);
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todas las marcas</option>' + `<option value="${STELLANTIS}">Stellantis (Peugeot, Citroën y Opel)</option>` + lista.map(m => `<option value="${esc(m)}">${esc(nombre(m))}</option>`).join('');
+  if ([...sel.options].some(o => o.value === actual)) sel.value = actual;
+}
 function llenarFiltros() {
   const uniq = (a) => [...new Set(a.filter(Boolean))].sort();
   const meses = uniq(S.ventas.map(periodoDeVenta)).reverse();
   opciones($('fMes'), meses.map(m => ({ v: m, l: mesLabel(m) })), 'Todos los meses', $('fMes').value);
-  opciones($('fMarca'), uniq(S.ventas.map(v => v.marca)), 'Todas las marcas', $('fMarca').value);
+  opcionesMarca($('fMarca'), S.ventas.map(v => v.marca));
   opciones($('fSucursal'), uniq(S.ventas.map(v => v.sucursal)), 'Todas las sucursales', $('fSucursal').value);
   opciones($('fVendedor'), uniq(S.ventas.map(v => v.vendedor)), 'Todos los vendedores', $('fVendedor').value);
+  opcionesMarca($('pMarca'), ['PEUGEOT', 'OPEL', 'CITROEN', ...S.precios.map(p => p.marca)]);
   const pm = uniq(S.precios.map(p => p.periodo)).reverse();
   opciones($('pMes'), pm.map(m => ({ v: m, l: 'Lista ' + mesLabel(m) })), null, $('pMes').value || pm[0]);
 }
@@ -441,7 +456,7 @@ function ventasFiltradas() {
   return S.ventas.filter(v => {
     const c = S.calc.get(v.folio_venta);
     if (m && periodoDeVenta(v) !== m) return false;
-    if (mk && v.marca !== mk) return false;
+    if (!coincideMarca(v.marca, mk)) return false;
     if (su && v.sucursal !== su) return false;
     if (ve && v.vendedor !== ve) return false;
     if (tb === 'marca' && !c.marca) return false;
@@ -554,7 +569,7 @@ function llenarFiltrosStats() {
   const meses = uniq(S.ventas.map(periodoDeVenta)).reverse();
   const actual = S.statsIni ? $('sMes').value : (meses[0] || ''); S.statsIni = true;
   opciones($('sMes'), meses.map(m => ({ v: m, l: mesLabel(m) })), 'Todos los meses', actual);
-  opciones($('sMarca'), uniq(S.ventas.map(v => v.marca)), 'Todas las marcas', $('sMarca').value);
+  opcionesMarca($('sMarca'), S.ventas.map(v => v.marca));
   opciones($('sSucursal'), uniq(S.ventas.map(v => v.sucursal)), 'Todas las sucursales', $('sSucursal').value);
 }
 const MM = (x) => { if (!x) return '$0'; const m = Math.abs(x) / 1e6; return (x < 0 ? '−' : '') + '$' + m.toLocaleString('es-CL', { maximumFractionDigits: m >= 10 ? 0 : 1 }) + ' M'; };
@@ -562,7 +577,7 @@ function agrupar(rows, f) { const m = new Map(); for (const v of rows) { const k
 function renderStats() {
   llenarFiltrosStats();
   const mes = $('sMes').value, mk = $('sMarca').value, su = $('sSucursal').value;
-  const rows = S.ventas.filter(v => (!mk || v.marca === mk) && (!su || v.sucursal === su) && (!mes || periodoDeVenta(v) === mes));
+  const rows = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su) && (!mes || periodoDeVenta(v) === mes));
   const n = rows.length;
   let fact = 0, marg = 0, margN = 0, bMarca = 0;
   for (const v of rows) {
@@ -591,7 +606,7 @@ function renderStats() {
   if (!mes && !mesesConMeta.length) { $('sMetaNota').textContent = ''; $('sMetas').innerHTML = '<div class="dc-empty">Aún no hay metas. Elige un mes para escribirlas.</div>'; }
   else {
     $('sMetaNota').textContent = mes ? 'meta editable' : 'acumulado de meses con meta';
-    const base = S.ventas.filter(v => (!mk || v.marca === mk) && (!su || v.sucursal === su));
+    const base = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su));
     $('sMetas').innerHTML = Object.keys(cuenta).map(m => {
       let real, meta;
       if (mes) { real = cuenta[m]; meta = (S.metas.find(x => x.periodo === mes && x.marca === m) || {}).unidades; }
@@ -698,7 +713,7 @@ $('btnExport').onclick = () => {
 /* ---------- Listas de precios ---------- */
 function preciosFiltrados() {
   const m = $('pMes').value, mk = $('pMarca').value, sg = $('pSeg').value, tx = norm($('pTxt').value);
-  return S.precios.filter(p => (!m || p.periodo === m) && (!mk || p.marca === mk) && (!sg || p.segmento === sg)
+  return S.precios.filter(p => (!m || p.periodo === m) && coincideMarca(p.marca, mk) && (!sg || p.segmento === sg)
     && (!tx || norm([p.version, p.cit, p.familia, p.key_mcv].join(' ')).includes(tx)))
     .sort((a, b) => (a.marca + a.segmento + a.familia + a.precio_lista_iva).localeCompare(b.marca + b.segmento + b.familia + b.precio_lista_iva, 'es', { numeric: true }) || a.precio_lista_iva - b.precio_lista_iva);
 }
