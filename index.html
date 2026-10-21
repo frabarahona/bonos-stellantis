@@ -306,9 +306,9 @@ td input.obs::placeholder{color:#b3b9bf}
         <div class="card-b">
           <div class="drop" id="drop">
             <b>Arrastra aquí archivos o carpetas completas</b>
-            Informe de ventas (.xls), listas de precios Peugeot / Opel / Citroën y lista de descuentos B2B. El sistema reconoce cada archivo; en una carpeta, el mes se toma del nombre del archivo o de la carpeta.
+            Informe de ventas (.xls), listas de precios Peugeot / Opel / Citroën, lista de descuentos B2B y cartas de pago de bonos de la marca (PDF). El sistema reconoce cada archivo; en una carpeta, el mes se toma del nombre del archivo o de la carpeta.
             <div class="acts"><button class="btn" type="button" id="btnArch">Elegir archivos</button><button class="btn" type="button" id="btnCarp">Subir carpeta</button></div>
-            <input type="file" id="fileIn" multiple accept=".xls,.xlsx" class="hidden">
+            <input type="file" id="fileIn" multiple accept=".xls,.xlsx,.pdf" class="hidden">
             <input type="file" id="dirIn" webkitdirectory directory multiple class="hidden">
           </div>
           <div id="pend" style="margin-top:14px"></div>
@@ -324,6 +324,10 @@ td input.obs::placeholder{color:#b3b9bf}
           <div class="card-h">Listas de precios por mes <span class="ch-sub">Clic en un mes para ver sus precios; ✕ borra una lista.</span></div>
           <div class="meses" id="meses"></div>
         </div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <div class="card-h">Bonos pagados por la marca <span class="ch-sub" id="pagResumen">Cartas de aporte de Stellantis (PDF). Cada VIN se cruza con el N° de chasis de la venta.</span></div>
+        <div class="card-b" style="padding:0"><div class="tablewrap" style="max-height:420px;min-height:0"><table id="tblPagos"></table></div></div>
       </div>
     </div>
   </main>
@@ -764,7 +768,70 @@ function calcularBonos(v, idxP, idxB) {
   return res;
 }
 
-if (typeof module !== 'undefined') module.exports = { financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
+
+/* ---------- Carta de pago de bonos de la marca (PDF de Stellantis) ---------- */
+// paginas: [[{s, x, y}], ...] = texto de cada página con su posición (pdf.js)
+const RE_VIN = /^[A-HJ-NPR-Z0-9]{17}$/;
+function montoCLP(s) { const t = String(s).replace(/[$\s.]/g, ''); if (t === '-' || t === '') return 0; const n = Number(t.replace(',', '.')); return isFinite(n) ? n : null; }
+function fechaTexto(s) {
+  const m = norm(s).match(/(\d{1,2}) DE ([A-Z]+) DE (\d{4})/);
+  return m && MESES[m[2]] ? `${m[3]}-${pad(MESES[m[2]])}-${pad(Number(m[1]))}` : null;
+}
+function parseCartaBono(paginas, archivo) {
+  const todo = paginas.flat();
+  const textos = todo.map(t => t.s.trim()).filter(Boolean);
+  const res = { tipo: 'pago', archivo, folio: null, marca: null, titulo: null, semana: null, fecha: null, total: null, filas: [] };
+  const titulo = textos.find(t => /^APORTE .* - SEMANA/i.test(norm(t))) || textos.find(t => /^APORTE BONO/i.test(norm(t)));
+  if (titulo) {
+    res.titulo = titulo.trim();
+    res.marca = marcaDesdeTexto(titulo);
+    const s = norm(titulo).match(/SEMANA (\d+)/); if (s) res.semana = Number(s[1]);
+  }
+  if (!res.marca) res.marca = marcaDesdeTexto(archivo);
+  const iF = textos.findIndex(t => /FOLIO/i.test(t));
+  if (iF >= 0) { const m = textos[iF].match(/FOLIO:?\s*([A-Z0-9-]+)/i); res.folio = m ? m[1] : (textos[iF + 1] || '').trim() || null; }
+  for (const t of textos) { const f = fechaTexto(t); if (f) { res.fecha = f; break; } }
+  // filas del anexo, página por página
+  for (const pg of paginas) {
+    const filas = new Map();
+    for (const t of pg) { if (!t.s.trim()) continue; const k = Math.round(t.y); if (!filas.has(k)) filas.set(k, []); filas.get(k).push(t); }
+    const head = [...filas.values()].find(r => r.some(t => norm(t.s) === 'VIN') && r.some(t => /APORTE/.test(norm(t.s))));
+    if (!head) continue;
+    const hx = (re) => { const h = head.find(t => re.test(norm(t.s))); return h ? h.x : null; };
+    const X = { modelo: hx(/^MODELO/), version: hx(/^VERSION/), mes: hx(/^MES/), anio: hx(/^ANO|^AÑO/), canal: hx(/^CANAL/), aporte: hx(/^APORTE/), dif: hx(/^DIFERENCIA/) };
+    const yHead = Math.round(head[0].y);
+    const estados = pg.filter(t => /^(APROBADO|RECHAZADO|PENDIENTE|OBSERVADO|OBJETADO)/.test(norm(t.s).replace(/\s/g, '')));
+    for (const [y, r] of filas) {
+      if (y >= yHead) continue;
+      r.sort((a, b) => a.x - b.x);
+      const vinIt = r.find(t => RE_VIN.test(t.s.trim()));
+      if (!vinIt) continue;
+      const entre = (a, b) => r.filter(t => t !== vinIt && t.x >= (a ?? -1e9) - 12 && t.x < (b ?? 1e9) - 12).map(t => t.s.trim()).filter(Boolean);
+      const nums = (a, b) => entre(a, b).filter(s => s !== '$').map(montoCLP).filter(n => n !== null);
+      const est = estados.filter(t => t.y > y).sort((a, b) => a.y - b.y)[0];
+      res.filas.push({
+        vin: vinIt.s.trim().toUpperCase(),
+        modelo: entre(X.modelo, X.version).join(' ') || null,
+        version: entre(X.version, X.mes).join(' ') || null,
+        mes_inmat: entre(X.mes, X.anio).join(' ') || null,
+        anio_inmat: entre(X.anio, X.canal).join(' ') || null,
+        canal: entre(X.canal, X.aporte).join(' ') || null,
+        aporte: nums(X.aporte, X.dif)[0] ?? null,
+        diferencia: nums(X.dif, null)[0] ?? 0,
+        estado: est ? est.s.replace(/\s+/g, ' ').trim().replace(/^(APROBADO|RECHAZADO|PENDIENTE|OBSERVADO|OBJETADO)(?=\S)/, '$1 ') : null,
+      });
+    }
+  }
+  res.total = res.filas.reduce((s, f) => s + (f.aporte || 0), 0);
+  return res;
+}
+// ¿El pago calza con lo calculado? La carta viene sin IVA; el cálculo está con IVA.
+function calzaPago(pagado, c) {
+  const cands = [c.marca, c.flota, (c.marca || 0) + (c.flota || 0)].filter(x => x);
+  return cands.some(x => Math.abs(x / IVA - pagado) <= TOL || Math.abs(x - pagado) <= TOL);
+}
+
+if (typeof module !== 'undefined') module.exports = { parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
 
 </script>
 <script>
@@ -778,7 +845,7 @@ if (!window.supabase || !window.XLSX) {
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza' };
 
-const S = { metas: [], user: null, precios: [], b2b: [], ventas: [], cargas: [], idxP: null, idxB: null, calc: new Map(), sort: { k: 'fecha_facturacion', d: -1 }, pendientes: [] };
+const S = { metas: [], pagos: [], pagosVin: new Map(), user: null, precios: [], b2b: [], ventas: [], cargas: [], idxP: null, idxB: null, calc: new Map(), sort: { k: 'fecha_facturacion', d: -1 }, pendientes: [] };
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n === null || n === undefined || isNaN(n)) ? '' : '$' + Math.round(n).toLocaleString('es-CL');
 const pct = (n) => (n === null || n === undefined) ? '' : (Math.round(n * 1000) / 10).toLocaleString('es-CL') + '%';
@@ -821,7 +888,9 @@ async function traerTodo(tabla, orden) {
 }
 async function cargarTodo() {
   try {
-    const [p, b, v, c, mt] = await Promise.all([traerTodo('precios'), traerTodo('descuentos_b2b'), traerTodo('ventas_bonos'), traerTodo('cargas', 'created_at'), traerTodo('metas')]);
+    const [p, b, v, c, mt, pg] = await Promise.all([traerTodo('precios'), traerTodo('descuentos_b2b'), traerTodo('ventas_bonos'), traerTodo('cargas', 'created_at'), traerTodo('metas'), traerTodo('bonos_pagados').catch(() => [])]);
+    S.pagos = pg.map(x => ({ ...x, aporte: Number(x.aporte), diferencia: Number(x.diferencia || 0) }));
+    S.pagosVin = new Map(); for (const x of S.pagos) { const k = (x.vin || '').toUpperCase(); if (!S.pagosVin.has(k)) S.pagosVin.set(k, []); S.pagosVin.get(k).push(x); }
     S.metas = mt.map(x => ({ ...x, unidades: Number(x.unidades) }));
     S.precios = p.map(x => ({ ...x, ...numerizar(x) })); S.b2b = b.map(x => ({ ...x, ...numerizar(x) })); S.ventas = v.map(x => ({ ...x, ...numerizar(x) })); S.cargas = c;
     S.idxP = indexarPrecios(S.precios); S.idxB = indexarB2B(S.b2b);
@@ -922,9 +991,19 @@ const COLS = [
 ];
 function valorOrden(v, k) {
   const c = S.calc.get(v.folio_venta);
-  if (k === 'b_marca') return c.marca ?? -1; if (k === 'b_sant') return c.sant ?? -1; if (k === 'b_flota') return c.flota ?? -1; if (k === 'b_extra') return c.extra ?? -1; if (k === 'dif') return c.dif === null ? -1e12 : Math.abs(c.dif);
+  if (k === 'b_marca') return c.marca ?? -1; if (k === 'b_sant') return c.sant ?? -1; if (k === 'b_flota') return c.flota ?? -1; if (k === 'b_extra') return c.extra ?? -1; if (k === 'b_pagado') return pagosDe(v).reduce((s, x) => s + x.aporte, 0) || -1; if (k === 'dif') return c.dif === null ? -1e12 : Math.abs(c.dif);
   const col = COLS.find(x => x.k === k); if (col && col.val) return col.val(v) ?? -1;
   return v[k] ?? '';
+}
+function pagosDe(v) { return S.pagosVin.get((v.chasis || '').toUpperCase()) || []; }
+function celdaPagoMarca(v, c) {
+  const ps = pagosDe(v);
+  if (!ps.length) return '<td class="n muted">—</td>';
+  const tot = ps.reduce((s, x) => s + (x.aporte || 0), 0);
+  const ok = calzaPago(tot, c);
+  const det = ps.map(x => `Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n');
+  const calc = c.marca || c.flota ? `\nCalculado: ${fmt((c.marca || 0) + (c.flota || 0))} con IVA (${fmt(((c.marca || 0) + (c.flota || 0)) / IVA)} sin IVA)` : '';
+  return `<td class="n"><span class="st ${ok ? 'ok' : 'warn'} av" title="${esc(det + calc)}">${ok ? '✓ ' : ''}${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA</span></td>`;
 }
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
@@ -939,8 +1018,8 @@ function renderVentas() {
   const arrow = (key) => S.sort.k === key ? (S.sort.d > 0 ? ' ▲' : ' ▼') : '';
   let h = '<thead><tr>' + COLS.map(c => `<th data-k="${c.k}" class="${c.n ? 'n' : ''} ${c.sticky ? 'sticky' : ''}">${c.t}${arrow(c.k)}</th>`).join('')
     + `<th data-k="b_marca" class="n grp-bono">Bono marca (TMP)${arrow('b_marca')}</th><th data-k="b_sant" class="n grp-bono">Santander${arrow('b_sant')}</th><th data-k="b_flota" class="n grp-bono">Flota${arrow('b_flota')}</th><th data-k="b_extra" class="n grp-bono">Adicionales${arrow('b_extra')}</th>`
-    + `<th data-k="dif" class="n">Diferencia${arrow('dif')}</th><th data-k="clasificacion">Forma de pago</th><th data-k="observacion">Observación</th></tr></thead><tbody>`;
-  if (!rows.length) h += `<tr><td colspan="${COLS.length + 7}" class="empty">${S.ventas.length ? 'No hay ventas con estos filtros.' : 'Aún no hay ventas. Sube el informe en la pestaña “Cargar archivos”.'}</td></tr>`;
+    + `<th data-k="dif" class="n">Diferencia${arrow('dif')}</th><th data-k="clasificacion">Forma de pago</th><th data-k="b_pagado" class="n" title="Aporte que Stellantis aprobó en sus cartas de pago, cruzado por VIN. Viene sin IVA.">Pagado por la marca</th><th data-k="observacion">Observación</th></tr></thead><tbody>`;
+  if (!rows.length) h += `<tr><td colspan="${COLS.length + 8}" class="empty">${S.ventas.length ? 'No hay ventas con estos filtros.' : 'Aún no hay ventas. Sube el informe en la pestaña “Cargar archivos”.'}</td></tr>`;
   for (const v of rows) {
     const c = S.calc.get(v.folio_venta);
     h += '<tr>' + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}">${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
@@ -955,6 +1034,7 @@ function renderVentas() {
     if (c.p && c.avisos.length) dif += `<span class="st aviso av" title="${esc(c.avisos.join('\n'))}">!</span>`;
     h += `<td class="n">${dif}</td>`;
     h += `<td><select class="cl ${clasifGuardada(v) ? 'manual' : ''}" data-f="${v.folio_venta}">` + Object.entries(CLASIF).map(([key, lab]) => `<option value="${key}" ${c.clasif === key ? 'selected' : ''}>${lab}${!v.clasificacion && c.auto === key ? '' : ''}</option>`).join('') + (clasifGuardada(v) ? `<option value="__auto">↺ Volver a automático (${CLASIF[c.auto]})</option>` : '') + '</select></td>';
+    h += celdaPagoMarca(v, c);
     h += `<td><input class="obs" data-f="${v.folio_venta}" value="${esc(v.observacion)}" placeholder="Agregar nota…" title="${v.editado_por ? 'Último cambio: ' + esc(NOMBRES[v.editado_por] || v.editado_por) + ' · ' + new Date(v.editado_at).toLocaleString('es-CL') : ''}"></td>`;
     h += '</tr>';
   }
@@ -1138,7 +1218,8 @@ $('btnExport').onclick = () => {
       Santander: c.sant, 'Pagado Santander': c.sant ? (v.pagado_santander ? 'PAGADO' : 'PENDIENTE') : '',
       Flota: c.flota, 'Pagado flota': c.flota ? (v.pagado_flota ? 'PAGADO' : 'PENDIENTE') : '',
       'Bonos adicionales': c.extra, 'Detalle adicionales': extrasDe(v).filter(e => Number(e.monto)).map(e => `${e.tipo} ${Math.round(e.monto)}${e.detalle ? ' (' + e.detalle + ')' : ''}${e.pagado ? ' PAGADO' : ' PENDIENTE'}`).join(' / '),
-      Diferencia: c.dif, 'Forma de pago': CLASIF[c.clasif], 'Tramo flota': c.tramo || '', 'Observación': v.observacion, Avisos: c.avisos.join(' / '),
+      Diferencia: c.dif, 'Forma de pago': CLASIF[c.clasif], 'Tramo flota': c.tramo || '',
+      'Pagado por la marca (sin IVA)': pagosDe(v).reduce((s, x) => s + x.aporte, 0) || null, 'Folio pago marca': pagosDe(v).map(x => x.folio).join(' / '), 'Observación': v.observacion, Avisos: c.avisos.join(' / '),
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Bonos');
@@ -1206,13 +1287,43 @@ drop.ondrop = async (e) => {
   leerArchivos(out);
 };
 
+// pdf.js se carga solo cuando se sube un PDF
+let pdfjsListo = null;
+function cargarPdfJs() {
+  if (!pdfjsListo) pdfjsListo = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
+    s.onerror = () => { pdfjsListo = null; rej(new Error('no se pudo cargar el lector de PDF')); };
+    document.head.appendChild(s);
+  });
+  return pdfjsListo;
+}
+async function textoPdf(buf) {
+  const lib = await cargarPdfJs();
+  const doc = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
+  const paginas = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const tc = await (await doc.getPage(i)).getTextContent();
+    paginas.push(tc.items.map(t => ({ s: t.str, x: t.transform[4], y: t.transform[5] })));
+  }
+  return paginas;
+}
 async function leerArchivos(lista) {
-  const validos = lista.filter(x => /\.xlsx?$/i.test(x.file.name) && !x.file.name.startsWith('~$'));
-  if (!validos.length) { toast('No encontré archivos Excel (.xls / .xlsx).', true); return; }
+  const validos = lista.filter(x => /\.(xlsx?|pdf)$/i.test(x.file.name) && !x.file.name.startsWith('~$'));
+  if (!validos.length) { toast('No encontré archivos Excel (.xls / .xlsx) ni PDF.', true); return; }
   if (validos.length > 1) toast(`Leyendo ${validos.length} archivos…`);
   for (const { file, ruta } of validos) {
     try {
       const buf = await file.arrayBuffer();
+      if (/\.pdf$/i.test(file.name)) {
+        const r = parseCartaBono(await textoPdf(buf), file.name);
+        if (!r.filas.length) { toast(`"${file.name}" no parece una carta de aporte de la marca: no encontré VIN en el anexo.`, true); continue; }
+        r.archivo = ruta;
+        S.pendientes = S.pendientes.filter(x => x.archivo !== ruta);
+        S.pendientes.push(r);
+        continue;
+      }
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
       const tipo = detectarArchivo(wb);
       let r;
@@ -1229,11 +1340,16 @@ async function leerArchivos(lista) {
   S.pendientes.sort((a, b) => (a.tipo === 'informe') - (b.tipo === 'informe') || String(b.periodo || '').localeCompare(String(a.periodo || '')) || String(a.marca || '').localeCompare(String(b.marca || '')));
   renderPendientes();
 }
+function nombreMarca(m) { return ({ PEUGEOT: 'Peugeot', OPEL: 'Opel', CITROEN: 'Citroën' })[norm(m)] || m; }
 function renderPendientes() {
   const box = $('pend');
   box.innerHTML = S.pendientes.map((r, i) => {
     let desc, per = '';
-    if (r.tipo === 'informe') {
+    if (r.tipo === 'pago') {
+      const vins = new Set(S.ventas.map(v => (v.chasis || '').toUpperCase()));
+      const cruzan = r.filas.filter(f => vins.has(f.vin)).length;
+      desc = `<b>Carta de pago ${esc(nombreMarca(r.marca) || '')}${r.folio ? ', folio ' + esc(r.folio) : ''}</b><small>${r.fecha ? fecha(r.fecha) + ': ' : ''}${r.filas.length} VIN por ${fmt(r.total)} + IVA. ${cruzan} de ${r.filas.length} cruzan con ventas cargadas.${r.folio ? '' : ' <span style="color:var(--bad)">No encontré el N° de folio.</span>'}</small>`;
+    } else if (r.tipo === 'informe') {
       const nuevos = r.filas.filter(f => !S.ventas.some(v => v.folio_venta === f.folio_venta)).length;
       desc = `<b>Informe de ventas</b><small>${r.filas.length} ventas: ${nuevos} nuevas y ${r.filas.length - nuevos} que se actualizan sin tocar lo marcado a mano.${r.faltan.length ? ' <span style="color:var(--bad)">Faltan columnas: ' + esc(r.faltan.join(', ')) + '</span>' : ''}</small>`;
     } else {
@@ -1252,7 +1368,9 @@ function renderPendientes() {
   $('btnGuardar').classList.toggle('hidden', !S.pendientes.length);
 }
 $('btnGuardar').onclick = async () => {
-  const sinPer = S.pendientes.find(r => r.tipo !== 'informe' && !r.periodo);
+  const sinPer = S.pendientes.find(r => (r.tipo === 'lista' || r.tipo === 'b2b') && !r.periodo);
+  const sinFolio = S.pendientes.find(r => r.tipo === 'pago' && !r.folio);
+  if (sinFolio) { toast(`"${sinFolio.archivo}" no trae N° de folio; no se puede guardar.`, true); return; }
   if (sinPer) { toast(`Indica el mes de vigencia de "${sinPer.archivo}".`, true); return; }
   $('btnGuardar').disabled = true; $('btnGuardar').textContent = 'Guardando…';
   const yo = S.user.email;
@@ -1266,6 +1384,12 @@ $('btnGuardar').onclick = async () => {
         const rows = r.filas.map(f => ({ ...f, periodo: r.periodo, cargado_por: yo, cargado_at: new Date().toISOString() }));
         const { error } = await sb.from('descuentos_b2b').upsert(rows, { onConflict: 'periodo,marca,key_mcv' }); if (error) throw error;
         await sb.from('cargas').insert({ tipo: 'Descuentos B2B', archivo: r.archivo, periodo: r.periodo, filas: rows.length, usuario: yo });
+      } else if (r.tipo === 'pago') {
+        const ins = await sb.from('cargas').insert({ tipo: 'Pago bono marca', archivo: r.archivo, filas: r.filas.length, usuario: yo }).select('id').single();
+        if (ins.error) throw ins.error;
+        const rows = r.filas.map(f => ({ ...f, folio: r.folio, marca: r.marca, titulo: r.titulo, fecha: r.fecha, semana: r.semana, archivo: r.archivo, carga_id: ins.data.id, cargado_por: yo, cargado_at: new Date().toISOString() }));
+        const { error } = await sb.from('bonos_pagados').upsert(rows, { onConflict: 'folio,vin' });
+        if (error) { await sb.from('cargas').delete().eq('id', ins.data.id); throw error; }
       } else {
         const ins = await sb.from('cargas').insert({ tipo: 'Informe de ventas', archivo: r.archivo, filas: r.filas.length, usuario: yo }).select('id').single();
         if (ins.error) throw ins.error;
@@ -1298,6 +1422,7 @@ function renderCargas() {
   $('tblInformes').innerHTML = h + '</tbody>';
   $('tblInformes').querySelectorAll('[data-del-inf]').forEach(b => b.onclick = () => borrarInforme(Number(b.dataset.delInf)));
   renderMeses();
+  renderPagos();
 }
 function renderMeses() {
   const per = new Map();
@@ -1321,6 +1446,35 @@ function renderMeses() {
   });
   $('meses').querySelectorAll('[data-del-l]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const [m, k] = b.dataset.delL.split('|'); borrarListas(m, [k]); });
   $('meses').querySelectorAll('[data-del-m]').forEach(b => b.onclick = (e) => { e.stopPropagation(); borrarListas(b.dataset.delM, ['PEUGEOT', 'OPEL', 'CITROEN', 'B2B']); });
+}
+
+function renderPagos() {
+  const vins = new Set(S.ventas.map(v => (v.chasis || '').toUpperCase()));
+  const porFolio = new Map();
+  for (const x of S.pagos) { if (!porFolio.has(x.folio)) porFolio.set(x.folio, []); porFolio.get(x.folio).push(x); }
+  const folios = [...porFolio.entries()].sort((a, b) => String(b[1][0].fecha || '').localeCompare(String(a[1][0].fecha || '')));
+  const total = S.pagos.reduce((s, x) => s + (x.aporte || 0), 0);
+  $('pagResumen').textContent = folios.length ? `${folios.length} ${folios.length === 1 ? 'carta' : 'cartas'}, ${S.pagos.length} VIN por ${fmt(total)} + IVA. Cada VIN se cruza con el N° de chasis de la venta.` : 'Cartas de aporte de Stellantis (PDF). Cada VIN se cruza con el N° de chasis de la venta.';
+  let h = '<thead><tr><th>Fecha</th><th>Marca</th><th>Folio</th><th class="n">Semana</th><th class="n">VIN</th><th class="n">Total sin IVA</th><th class="n">Cruzan con ventas</th><th>Subido por</th><th></th></tr></thead><tbody>';
+  if (!folios.length) h += '<tr><td colspan="9" class="empty">Aún no hay cartas de pago. Sube el PDF que envía la marca.</td></tr>';
+  for (const [folio, xs] of folios) {
+    const f = xs[0], sin = xs.filter(x => !vins.has((x.vin || '').toUpperCase()));
+    h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}">${esc(folio)}</td><td class="n">${f.semana ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
+      <td class="n" title="${sin.length ? 'Sin venta cargada: ' + esc(sin.map(x => x.vin + ' (' + (x.modelo || '') + ')').join(', ')) : 'Todos los VIN tienen su venta'}"><span class="st ${sin.length ? 'warn' : 'ok'}">${xs.length - sin.length} de ${xs.length}</span></td>
+      <td>${esc(NOMBRES[f.cargado_por] || f.cargado_por || '')}</td><td style="text-align:right"><button class="btn sm danger" data-del-pago="${esc(folio)}">Borrar</button></td></tr>`;
+  }
+  $('tblPagos').innerHTML = h + '</tbody>';
+  $('tblPagos').querySelectorAll('[data-del-pago]').forEach(b => b.onclick = () => borrarPago(b.dataset.delPago));
+}
+async function borrarPago(folio) {
+  const xs = S.pagos.filter(x => x.folio === folio);
+  const ok = await confirmar('Borrar carta de pago', `Se borrará la carta <b>${esc(folio)}</b> con ${xs.length} VIN por <b>${fmt(xs.reduce((s, x) => s + x.aporte, 0))}</b> + IVA. Las ventas no se tocan. Después puedes volver a subir el PDF.`, 'Borrar carta');
+  if (!ok) return;
+  const r = await sb.from('bonos_pagados').delete().eq('folio', folio);
+  if (r.error) { toast('No se pudo borrar: ' + r.error.message, true); return; }
+  for (const id of new Set(xs.map(x => x.carga_id).filter(Boolean))) await sb.from('cargas').delete().eq('id', id);
+  toast(`Carta ${folio} borrada.`);
+  await cargarTodo();
 }
 
 /* ---------- Borrar ---------- */

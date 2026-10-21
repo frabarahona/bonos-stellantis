@@ -432,4 +432,67 @@ function calcularBonos(v, idxP, idxB) {
   return res;
 }
 
-if (typeof module !== 'undefined') module.exports = { financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
+
+/* ---------- Carta de pago de bonos de la marca (PDF de Stellantis) ---------- */
+// paginas: [[{s, x, y}], ...] = texto de cada página con su posición (pdf.js)
+const RE_VIN = /^[A-HJ-NPR-Z0-9]{17}$/;
+function montoCLP(s) { const t = String(s).replace(/[$\s.]/g, ''); if (t === '-' || t === '') return 0; const n = Number(t.replace(',', '.')); return isFinite(n) ? n : null; }
+function fechaTexto(s) {
+  const m = norm(s).match(/(\d{1,2}) DE ([A-Z]+) DE (\d{4})/);
+  return m && MESES[m[2]] ? `${m[3]}-${pad(MESES[m[2]])}-${pad(Number(m[1]))}` : null;
+}
+function parseCartaBono(paginas, archivo) {
+  const todo = paginas.flat();
+  const textos = todo.map(t => t.s.trim()).filter(Boolean);
+  const res = { tipo: 'pago', archivo, folio: null, marca: null, titulo: null, semana: null, fecha: null, total: null, filas: [] };
+  const titulo = textos.find(t => /^APORTE .* - SEMANA/i.test(norm(t))) || textos.find(t => /^APORTE BONO/i.test(norm(t)));
+  if (titulo) {
+    res.titulo = titulo.trim();
+    res.marca = marcaDesdeTexto(titulo);
+    const s = norm(titulo).match(/SEMANA (\d+)/); if (s) res.semana = Number(s[1]);
+  }
+  if (!res.marca) res.marca = marcaDesdeTexto(archivo);
+  const iF = textos.findIndex(t => /FOLIO/i.test(t));
+  if (iF >= 0) { const m = textos[iF].match(/FOLIO:?\s*([A-Z0-9-]+)/i); res.folio = m ? m[1] : (textos[iF + 1] || '').trim() || null; }
+  for (const t of textos) { const f = fechaTexto(t); if (f) { res.fecha = f; break; } }
+  // filas del anexo, página por página
+  for (const pg of paginas) {
+    const filas = new Map();
+    for (const t of pg) { if (!t.s.trim()) continue; const k = Math.round(t.y); if (!filas.has(k)) filas.set(k, []); filas.get(k).push(t); }
+    const head = [...filas.values()].find(r => r.some(t => norm(t.s) === 'VIN') && r.some(t => /APORTE/.test(norm(t.s))));
+    if (!head) continue;
+    const hx = (re) => { const h = head.find(t => re.test(norm(t.s))); return h ? h.x : null; };
+    const X = { modelo: hx(/^MODELO/), version: hx(/^VERSION/), mes: hx(/^MES/), anio: hx(/^ANO|^AÑO/), canal: hx(/^CANAL/), aporte: hx(/^APORTE/), dif: hx(/^DIFERENCIA/) };
+    const yHead = Math.round(head[0].y);
+    const estados = pg.filter(t => /^(APROBADO|RECHAZADO|PENDIENTE|OBSERVADO|OBJETADO)/.test(norm(t.s).replace(/\s/g, '')));
+    for (const [y, r] of filas) {
+      if (y >= yHead) continue;
+      r.sort((a, b) => a.x - b.x);
+      const vinIt = r.find(t => RE_VIN.test(t.s.trim()));
+      if (!vinIt) continue;
+      const entre = (a, b) => r.filter(t => t !== vinIt && t.x >= (a ?? -1e9) - 12 && t.x < (b ?? 1e9) - 12).map(t => t.s.trim()).filter(Boolean);
+      const nums = (a, b) => entre(a, b).filter(s => s !== '$').map(montoCLP).filter(n => n !== null);
+      const est = estados.filter(t => t.y > y).sort((a, b) => a.y - b.y)[0];
+      res.filas.push({
+        vin: vinIt.s.trim().toUpperCase(),
+        modelo: entre(X.modelo, X.version).join(' ') || null,
+        version: entre(X.version, X.mes).join(' ') || null,
+        mes_inmat: entre(X.mes, X.anio).join(' ') || null,
+        anio_inmat: entre(X.anio, X.canal).join(' ') || null,
+        canal: entre(X.canal, X.aporte).join(' ') || null,
+        aporte: nums(X.aporte, X.dif)[0] ?? null,
+        diferencia: nums(X.dif, null)[0] ?? 0,
+        estado: est ? est.s.replace(/\s+/g, ' ').trim().replace(/^(APROBADO|RECHAZADO|PENDIENTE|OBSERVADO|OBJETADO)(?=\S)/, '$1 ') : null,
+      });
+    }
+  }
+  res.total = res.filas.reduce((s, f) => s + (f.aporte || 0), 0);
+  return res;
+}
+// ¿El pago calza con lo calculado? La carta viene sin IVA; el cálculo está con IVA.
+function calzaPago(pagado, c) {
+  const cands = [c.marca, c.flota, (c.marca || 0) + (c.flota || 0)].filter(x => x);
+  return cands.some(x => Math.abs(x / IVA - pagado) <= TOL || Math.abs(x - pagado) <= TOL);
+}
+
+if (typeof module !== 'undefined') module.exports = { parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
