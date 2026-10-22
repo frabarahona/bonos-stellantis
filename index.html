@@ -1035,7 +1035,7 @@ function celdaPagoMarca(v, c) {
   const ok = calzaPago(tot, c);
   const det = ps.map(x => `Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n');
   const calc = c.marca || c.flota ? `\nCalculado: ${fmt((c.marca || 0) + (c.flota || 0))} con IVA (${fmt(((c.marca || 0) + (c.flota || 0)) / IVA)} sin IVA)` : '';
-  return `<td class="n"><span class="st ${ok ? 'ok' : 'warn'} av" title="${esc(det + calc)}">${ok ? '✓ ' : ''}${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA</span></td>`;
+  return `<td class="n"><span class="st ok av" title="${esc(det + calc)}">✓ Pagado ${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA</span>${ok ? '' : '<div class="muted" style="font-size:11px" title="' + esc(det + calc) + '">distinto al calculado</div>'}</td>`;
 }
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
