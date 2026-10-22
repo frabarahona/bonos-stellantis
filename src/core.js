@@ -441,6 +441,23 @@ function fechaTexto(s) {
   const m = norm(s).match(/(\d{1,2}) DE ([A-Z]+) DE (\d{4})/);
   return m && MESES[m[2]] ? `${m[3]}-${pad(MESES[m[2]])}-${pad(Number(m[1]))}` : null;
 }
+// Semana ISO (lunes a domingo) de una fecha YYYY-MM-DD
+function semanaISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  const dia = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - dia);
+  const ini = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - ini) / 86400000 + 1) / 7);
+}
+// El folio termina en la fecha de corte DDMMAA (ej. ABM100050C111026 = 11-10-2026, semana 41)
+function semanaDeFolio(folio) {
+  const m = String(folio || '').match(/(\d{2})(\d{2})(\d{2})$/);
+  if (!m) return null;
+  const d = Number(m[1]), mo = Number(m[2]), y = 2000 + Number(m[3]);
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+  return semanaISO(`${y}-${pad(mo)}-${pad(d)}`);
+}
 function parseCartaBono(paginas, archivo) {
   const todo = paginas.flat();
   const textos = todo.map(t => t.s.trim()).filter(Boolean);
@@ -455,6 +472,9 @@ function parseCartaBono(paginas, archivo) {
   const iF = textos.findIndex(t => /FOLIO/i.test(t));
   if (iF >= 0) { const m = textos[iF].match(/FOLIO:?\s*([A-Z0-9-]+)/i); res.folio = m ? m[1] : (textos[iF + 1] || '').trim() || null; }
   for (const t of textos) { const f = fechaTexto(t); if (f) { res.fecha = f; break; } }
+  // semana: título, cualquier texto de la carta, nombre del archivo y, al final, la fecha del folio
+  if (!res.semana) for (const t of [...textos, archivo || '']) { const s = norm(t).match(/SEMANA\s*N?[°º.]?\s*(\d{1,2})\b/); if (s) { res.semana = Number(s[1]); break; } }
+  if (!res.semana) res.semana = semanaDeFolio(res.folio);
   // filas del anexo, página por página
   for (const pg of paginas) {
     const filas = new Map();
@@ -495,4 +515,4 @@ function calzaPago(pagado, c) {
   return cands.some(x => Math.abs(x / IVA - pagado) <= TOL || Math.abs(x - pagado) <= TOL);
 }
 
-if (typeof module !== 'undefined') module.exports = { parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
+if (typeof module !== 'undefined') module.exports = { semanaDeFolio, semanaISO, parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };

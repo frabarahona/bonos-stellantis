@@ -971,7 +971,7 @@ function renderPagos() {
   if (!folios.length) h += '<tr><td colspan="9" class="empty">Aún no hay cartas de pago. Sube el PDF que envía la marca.</td></tr>';
   for (const [folio, xs] of folios) {
     const f = xs[0], sin = xs.filter(x => !ventaDePago(x));
-    h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}">${esc(folio)}</td><td class="n">${f.semana ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
+    h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}">${esc(folio)}</td><td class="n">${f.semana ?? semanaDeFolio(folio) ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
       <td class="n"><span class="st ${sin.length ? 'warn' : 'ok'}">${xs.length - sin.length} de ${xs.length}</span></td>
       <td>${esc(NOMBRES[f.cargado_por] || f.cargado_por || '')}</td><td style="text-align:right"><button class="btn sm danger" data-del-pago="${esc(folio)}">Borrar</button></td></tr>`;
     if (sin.length) h += `<tr class="sinventa"><td></td><td colspan="8">Sin venta cargada: ${sin.map(x => `<b>${esc(x.vin)}</b> ${esc([x.modelo, x.version].filter(Boolean).join(' '))}${x.mes_inmat ? ' (inmat. ' + esc(x.mes_inmat) + ' ' + esc(x.anio_inmat || '') + ')' : ''} · ${fmt(x.aporte)}`).join('<br>')}</td></tr>`;
