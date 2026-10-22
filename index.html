@@ -127,6 +127,8 @@ td input.obs::placeholder{color:#b3b9bf}
 .mes .xm{font-size:12px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;flex:none;padding:0}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:11px 15px;border-radius:var(--r);box-shadow:0 6px 18px rgba(28,34,40,.25);z-index:70;max-width:420px}
 .toast.bad{background:var(--bad)}
+.sinventa td{background:var(--warn-soft);color:var(--warn);font-size:12.5px;white-space:normal;line-height:1.6;padding-top:6px;padding-bottom:8px}
+.sinventa b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .legend{font-size:12.5px;color:var(--ink2);padding:10px 14px;border-top:1px solid var(--line);line-height:1.6;max-width:1100px}
 /* ventanas */
 .modal-bg{position:fixed;inset:0;background:rgba(28,34,40,.42);display:grid;place-items:center;z-index:60;padding:16px}
@@ -890,7 +892,8 @@ async function cargarTodo() {
   try {
     const [p, b, v, c, mt, pg] = await Promise.all([traerTodo('precios'), traerTodo('descuentos_b2b'), traerTodo('ventas_bonos'), traerTodo('cargas', 'created_at'), traerTodo('metas'), traerTodo('bonos_pagados').catch(() => [])]);
     S.pagos = pg.map(x => ({ ...x, aporte: Number(x.aporte), diferencia: Number(x.diferencia || 0) }));
-    S.pagosVin = new Map(); for (const x of S.pagos) { const k = (x.vin || '').toUpperCase(); if (!S.pagosVin.has(k)) S.pagosVin.set(k, []); S.pagosVin.get(k).push(x); }
+    S.pagosVin = new Map();
+    for (const x of S.pagos) for (const k of clavesVin(x.vin)) { if (!S.pagosVin.has(k)) S.pagosVin.set(k, []); S.pagosVin.get(k).push(x); }
     S.metas = mt.map(x => ({ ...x, unidades: Number(x.unidades) }));
     S.precios = p.map(x => ({ ...x, ...numerizar(x) })); S.b2b = b.map(x => ({ ...x, ...numerizar(x) })); S.ventas = v.map(x => ({ ...x, ...numerizar(x) })); S.cargas = c;
     S.idxP = indexarPrecios(S.precios); S.idxB = indexarB2B(S.b2b);
@@ -899,7 +902,10 @@ async function cargarTodo() {
   } catch (err) { toast('Error al leer la base: ' + err.message, true); }
 }
 function numerizar(o) { const r = {}; for (const [k, v] of Object.entries(o)) if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) && !['folio_venta', 'folio_facturacion', 'rut', 'digito', 'lcdv', 'key_mcv', 'archivo', 'tipo'].includes(k)) r[k] = Number(v); return r; }
-function recalcular() { S.calc = new Map(); for (const v of S.ventas) S.calc.set(v.folio_venta, calcularBonos(v, S.idxP, S.idxB)); }
+function recalcular() {
+  S.ventasVin = new Map();
+  for (const v of S.ventas) for (const k of clavesVin(v.chasis)) { if (!S.ventasVin.has(k)) S.ventasVin.set(k, []); S.ventasVin.get(k).push(v); }
+  S.calc = new Map(); for (const v of S.ventas) S.calc.set(v.folio_venta, calcularBonos(v, S.idxP, S.idxB)); }
 
 /* ---------- Tabs ---------- */
 document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
@@ -995,7 +1001,13 @@ function valorOrden(v, k) {
   const col = COLS.find(x => x.k === k); if (col && col.val) return col.val(v) ?? -1;
   return v[k] ?? '';
 }
-function pagosDe(v) { return S.pagosVin.get((v.chasis || '').toUpperCase()) || []; }
+// Cruce VIN carta ↔ chasis de la venta: exacto, o por los últimos 8 caracteres (número de serie)
+// cuando el informe trae el chasis con otro formato.
+function vinLimpio(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function clavesVin(s) { const t = vinLimpio(s); if (!t) return []; return t.length >= 8 ? ['F:' + t, 'S:' + t.slice(-8)] : ['F:' + t]; }
+function buscarPorVin(mapa, s) { const t = vinLimpio(s); if (!t) return []; const ex = mapa.get('F:' + t); if (ex) return ex; return t.length >= 8 ? (mapa.get('S:' + t.slice(-8)) || []) : []; }
+function pagosDe(v) { return buscarPorVin(S.pagosVin, v.chasis); }
+function ventaDePago(x) { return buscarPorVin(S.ventasVin || new Map(), x.vin)[0] || null; }
 function celdaPagoMarca(v, c) {
   const ps = pagosDe(v);
   if (!ps.length) return '<td class="n muted">—</td>';
@@ -1346,8 +1358,7 @@ function renderPendientes() {
   box.innerHTML = S.pendientes.map((r, i) => {
     let desc, per = '';
     if (r.tipo === 'pago') {
-      const vins = new Set(S.ventas.map(v => (v.chasis || '').toUpperCase()));
-      const cruzan = r.filas.filter(f => vins.has(f.vin)).length;
+      const cruzan = r.filas.filter(f => ventaDePago(f)).length;
       desc = `<b>Carta de pago ${esc(nombreMarca(r.marca) || '')}${r.folio ? ', folio ' + esc(r.folio) : ''}</b><small>${r.fecha ? fecha(r.fecha) + ': ' : ''}${r.filas.length} VIN por ${fmt(r.total)} + IVA. ${cruzan} de ${r.filas.length} cruzan con ventas cargadas.${r.folio ? '' : ' <span style="color:var(--bad)">No encontré el N° de folio.</span>'}</small>`;
     } else if (r.tipo === 'informe') {
       const nuevos = r.filas.filter(f => !S.ventas.some(v => v.folio_venta === f.folio_venta)).length;
@@ -1449,7 +1460,6 @@ function renderMeses() {
 }
 
 function renderPagos() {
-  const vins = new Set(S.ventas.map(v => (v.chasis || '').toUpperCase()));
   const porFolio = new Map();
   for (const x of S.pagos) { if (!porFolio.has(x.folio)) porFolio.set(x.folio, []); porFolio.get(x.folio).push(x); }
   const folios = [...porFolio.entries()].sort((a, b) => String(b[1][0].fecha || '').localeCompare(String(a[1][0].fecha || '')));
@@ -1458,10 +1468,11 @@ function renderPagos() {
   let h = '<thead><tr><th>Fecha</th><th>Marca</th><th>Folio</th><th class="n">Semana</th><th class="n">VIN</th><th class="n">Total sin IVA</th><th class="n">Cruzan con ventas</th><th>Subido por</th><th></th></tr></thead><tbody>';
   if (!folios.length) h += '<tr><td colspan="9" class="empty">Aún no hay cartas de pago. Sube el PDF que envía la marca.</td></tr>';
   for (const [folio, xs] of folios) {
-    const f = xs[0], sin = xs.filter(x => !vins.has((x.vin || '').toUpperCase()));
+    const f = xs[0], sin = xs.filter(x => !ventaDePago(x));
     h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}">${esc(folio)}</td><td class="n">${f.semana ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
-      <td class="n" title="${sin.length ? 'Sin venta cargada: ' + esc(sin.map(x => x.vin + ' (' + (x.modelo || '') + ')').join(', ')) : 'Todos los VIN tienen su venta'}"><span class="st ${sin.length ? 'warn' : 'ok'}">${xs.length - sin.length} de ${xs.length}</span></td>
+      <td class="n"><span class="st ${sin.length ? 'warn' : 'ok'}">${xs.length - sin.length} de ${xs.length}</span></td>
       <td>${esc(NOMBRES[f.cargado_por] || f.cargado_por || '')}</td><td style="text-align:right"><button class="btn sm danger" data-del-pago="${esc(folio)}">Borrar</button></td></tr>`;
+    if (sin.length) h += `<tr class="sinventa"><td></td><td colspan="8">Sin venta cargada: ${sin.map(x => `<b>${esc(x.vin)}</b> ${esc([x.modelo, x.version].filter(Boolean).join(' '))}${x.mes_inmat ? ' (inmat. ' + esc(x.mes_inmat) + ' ' + esc(x.anio_inmat || '') + ')' : ''} · ${fmt(x.aporte)}`).join('<br>')}</td></tr>`;
   }
   $('tblPagos').innerHTML = h + '</tbody>';
   $('tblPagos').querySelectorAll('[data-del-pago]').forEach(b => b.onclick = () => borrarPago(b.dataset.delPago));
