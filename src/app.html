@@ -272,6 +272,7 @@ tr.resalta td{background:#fff4c2 !important;transition:background .4s}
             <select id="sMes"></select>
             <select id="sMarca"><option value="">Todas las marcas</option></select>
             <select id="sSucursal"><option value="">Todas las sucursales</option></select>
+            <button class="btn" id="sExport">Exportar Excel</button>
           </div>
         </header>
         <div class="dc-kpis" id="sKpis"></div>
@@ -736,8 +737,8 @@ function abrirExtras(folio) {
 }
 
 /* ---------- Exportar ---------- */
-$('btnExport').onclick = () => {
-  const rows = ventasFiltradas().map(v => {
+function filasVentasExport() {
+  return ventasFiltradas().map(v => {
     const c = S.calc.get(v.folio_venta);
     return {
       Sucursal: v.sucursal, Vendedor: v.vendedor, Cliente: v.cliente, RUT: v.rut ? `${v.rut}-${v.digito ?? ''}` : '', Marca: v.marca, Modelo: v.modelo, 'Versión': v.version,
@@ -748,12 +749,57 @@ $('btnExport').onclick = () => {
       Flota: c.flota, 'Pagado flota': c.flota ? (v.pagado_flota ? 'PAGADO' : 'PENDIENTE') : '',
       'Bonos adicionales': c.extra, 'Detalle adicionales': extrasDe(v).filter(e => Number(e.monto)).map(e => `${e.tipo} ${Math.round(e.monto)}${e.detalle ? ' (' + e.detalle + ')' : ''}${e.pagado ? ' PAGADO' : ' PENDIENTE'}`).join(' / '),
       Diferencia: c.dif, 'Forma de pago': CLASIF[c.clasif], 'Tramo flota': c.tramo || '',
-      'Pagado por la marca (sin IVA)': pagosDe(v).reduce((s, x) => s + x.aporte, 0) || null, 'Folio pago marca': pagosDe(v).map(x => x.folio).join(' / '), 'Observación': v.observacion, Avisos: c.avisos.join(' / '),
+      'Pagado por la marca (sin IVA)': pagosDe(v).reduce((s, x) => s + x.aporte, 0) || null, 'Folio pago marca': pagosDe(v).map(x => x.folio).join(' / '),
+      'Estado pago marca': txtEstado(estadoPago(pagosDe(v).filter(x => !esPagoFinanciamiento(x)), c, false)),
+      'Estado pago financiamiento': txtEstado(estadoPago(pagosDe(v).filter(esPagoFinanciamiento), c, true)),
+      'Observación': v.observacion, Avisos: c.avisos.join(' / '),
     };
   });
-  const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Bonos');
+}
+function txtEstado(e) { if (!e) return ''; if (e.pend) return 'PENDIENTE'; return e.ok ? 'PAGADO - CUADRA' : 'PAGADO - NO CUADRA' + (e.dif !== null ? ' (' + Math.round(e.dif) + ' sin IVA)' : ''); }
+function filasStatsExport() {
+  llenarFiltrosStats();
+  const mes = $('sMes').value, mk = $('sMarca').value, su = $('sSucursal').value;
+  const rows = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su) && (!mes || periodoDeVenta(v) === mes));
+  const n = rows.length, R = [];
+  R.push(['Estadísticas', mes ? mesLabel(mes) : 'Todos los meses', mk ? (mk === STELLANTIS ? 'Stellantis' : mk) : 'Todas las marcas', su || 'Todas las sucursales'], []);
+  let fact = 0, marg = 0, margN = 0, bMarca = 0;
+  for (const v of rows) { const c = S.calc.get(v.folio_venta); fact += (v.unidad_venta || 0) * IVA; const m = margenDe(v, c); if (m !== null) { marg += m; margN++; } bMarca += c.marca || 0; }
+  R.push(['Resumen'], ['Ventas', n], ['Facturado (con IVA)', Math.round(fact)], ['Margen', margN ? Math.round(marg) : null], ['Bonos marca', Math.round(bMarca)], []);
+  const cuenta = { PEUGEOT: 0, OPEL: 0, CITROEN: 0 };
+  rows.forEach(v => { const m = marcaKey(v.marca); if (m in cuenta) cuenta[m]++; });
+  R.push(['Ventas por marca', 'Ventas', '%']);
+  for (const [m, c] of Object.entries(cuenta)) R.push([NOM_MARCA[m], c, n ? Math.round(c / n * 100) / 100 : null]);
+  R.push([]);
+  R.push(['Ventas vs meta', 'Ventas', 'Meta', '% cumplimiento']);
+  const base = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su));
+  for (const m of Object.keys(cuenta)) {
+    let real, meta;
+    if (mes) { real = cuenta[m]; meta = (S.metas.find(x => x.periodo === mes && x.marca === m) || {}).unidades; }
+    else { const ms = S.metas.filter(x => x.marca === m); meta = ms.length ? ms.reduce((s, x) => s + x.unidades, 0) : undefined; const per = new Set(ms.map(x => x.periodo)); real = base.filter(v => marcaKey(v.marca) === m && per.has(periodoDeVenta(v))).length; }
+    R.push([NOM_MARCA[m], real, meta ?? null, meta ? Math.round(real / meta * 100) / 100 : null]);
+  }
+  R.push([]);
+  const grupo = (v) => { const c = S.calc.get(v.folio_venta).clasif; return c === 'CONTADO' ? 'Contado' : c === 'CC' || c === 'CI' ? 'Crédito' : 'Flota / Leasing'; };
+  R.push(['Tipo de venta', 'Ventas', '%']); agrupar(rows, grupo).forEach(x => R.push([x.l, x.n, n ? Math.round(x.n / n * 100) / 100 : null])); R.push([]);
+  R.push(['Financiera', 'Ventas']); agrupar(rows, v => financieraDe(v)).forEach(x => R.push([x.l, x.n])); R.push([]);
+  const V = new Map();
+  for (const v of rows) { const key = v.vendedor || '(sin vendedor)', c = S.calc.get(v.folio_venta); if (!V.has(key)) V.set(key, { n: 0, f: 0, m: 0, ok: 0 }); const r = V.get(key); r.n++; r.f += (v.unidad_venta || 0) * IVA; const mg = margenDe(v, c); if (mg !== null) { r.m += mg; r.ok++; } }
+  R.push(['Vendedor', 'Ventas', 'Facturado (con IVA)', 'Margen']);
+  [...V.entries()].sort((a, b) => b[1].n - a[1].n || b[1].f - a[1].f).forEach(([nm, r]) => R.push([nm, r.n, Math.round(r.f), r.ok ? Math.round(r.m) : null]));
+  return R;
+}
+function exportarTodo() {
+  const wb = XLSX.utils.book_new();
+  const hoja = (ws, cols) => { ws['!cols'] = cols; return ws; };
+  const v = filasVentasExport();
+  XLSX.utils.book_append_sheet(wb, hoja(XLSX.utils.json_to_sheet(v.length ? v : [{ Aviso: 'Sin ventas con los filtros actuales' }]), Object.keys(v[0] || { a: 1 }).map(() => ({ wch: 16 }))), 'Ventas y bonos');
+  XLSX.utils.book_append_sheet(wb, hoja(XLSX.utils.aoa_to_sheet(filasStatsExport()), [{ wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 18 }]), 'Estadísticas');
+  const p = filasPreciosExport();
+  XLSX.utils.book_append_sheet(wb, hoja(XLSX.utils.json_to_sheet(p.length ? p : [{ Aviso: 'Sin listas con los filtros actuales' }]), Object.keys(p[0] || { a: 1 }).map(() => ({ wch: 16 }))), 'Listas de precios');
   XLSX.writeFile(wb, `Bonos_Stellantis_${new Date().toISOString().slice(0, 10)}.xlsx`);
-};
+}
+$('btnExport').onclick = exportarTodo;
 
 /* ---------- Listas de precios ---------- */
 function preciosFiltrados() {
@@ -782,15 +828,14 @@ function renderPrecios() {
   }
   $('tblPrecios').innerHTML = h + '</tbody>';
 }
-$('pExport').onclick = () => {
-  const rows = preciosFiltrados().map(p => { const b = b2bDe(p); return {
+function filasPreciosExport() {
+  return preciosFiltrados().map(p => { const b = b2bDe(p); return {
     Periodo: mesLabel(p.periodo), Marca: p.marca, Segmento: p.segmento, Familia: p.familia, 'Versión': p.version, CIT: p.cit, LCDV: p.lcdv,
     'Lista c/IVA': p.precio_lista_iva, 'Lista neto': p.precio_lista_neto, 'Bono TMP': p.bono_tmp_iva, 'Bono CC': p.bono_cc_iva, 'Bono CI': p.bono_ci_iva,
     'Aporte red': p.aporte_red_iva, 'Aporte Stellantis': p.aporte_stl_iva, 'Financiera CC': p.aporte_fin_cc_iva, 'Financiera CI': p.aporte_fin_ci_iva,
     'B2B T1': b ? b.t1 : p.b2b_t1, 'B2B T1 Stellantis': b ? b.t1_stl : null, 'B2B T2': b ? b.t2 : p.b2b_t2, 'B2B T2 Stellantis': b ? b.t2_stl : null, 'B2B GC': b ? b.gc : p.b2b_gc, 'B2B GC Stellantis': b ? b.gc_stl : null }; });
-  const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Precios');
-  XLSX.writeFile(wb, `Precios_${$('pMes').value || 'todos'}.xlsx`);
-};
+}
+$('pExport').onclick = exportarTodo; $('sExport').onclick = exportarTodo;
 
 /* ---------- Carga de archivos ---------- */
 const drop = $('drop');
