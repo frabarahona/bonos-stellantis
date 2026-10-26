@@ -131,6 +131,10 @@ td input.obs::placeholder{color:#b3b9bf}
 .sinventa b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .legend{font-size:12.5px;color:var(--ink2);padding:10px 14px;border-top:1px solid var(--line);line-height:1.6;max-width:1100px}
 /* ventanas */
+.lnk{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+table.mini{width:100%;border-collapse:collapse;font-size:13px}table.mini th,table.mini td{padding:7px 8px;border-bottom:1px solid #e6e8eb;text-align:left;white-space:nowrap}table.mini th{font-size:11.5px;color:#6b7280;font-weight:600}table.mini .n{text-align:right}
+tr.resalta td{background:#fff4c2 !important;transition:background .4s}
+.pg+.pg{margin-top:6px}
 .modal-bg{position:fixed;inset:0;background:rgba(28,34,40,.42);display:grid;place-items:center;z-index:60;padding:16px}
 .modal{background:#fff;border-radius:var(--r);width:100%;max-width:640px;box-shadow:0 18px 44px rgba(28,34,40,.28);max-height:90vh;overflow:auto;border-top:3px solid var(--accent)}
 .modal h3{margin:0;font-size:17px;font-weight:700;font-stretch:85%}
@@ -510,19 +514,25 @@ function clavesVin(s) { const t = vinLimpio(s); if (!t) return []; return t.leng
 function buscarPorVin(mapa, s) { const t = vinLimpio(s); if (!t) return []; const ex = mapa.get('F:' + t); if (ex) return ex; return t.length >= 8 ? (mapa.get('S:' + t.slice(-8)) || []) : []; }
 function pagosDe(v) { return buscarPorVin(S.pagosVin, v.chasis); }
 function ventaDePago(x) { return buscarPorVin(S.ventasVin || new Map(), x.vin)[0] || null; }
+function estadoPago(xs, c, fin) {
+  const ref = fin ? (c.sant || 0) : (c.marca || 0) + (c.flota || 0);
+  if (!xs.length) return ref ? { pend: true, ref } : null;
+  const tot = xs.reduce((s, x) => s + (x.aporte || 0), 0);
+  return { tot, ref, ok: calzaPago(tot, c, fin), dif: ref ? tot - ref / IVA : null };
+}
 function celdaPagoMarca(v, c) {
   const ps = pagosDe(v);
-  if (!ps.length) return '<td class="n muted">—</td>';
-  const linea = (xs, fin) => {
-    if (!xs.length) return '';
-    const tot = xs.reduce((s, x) => s + (x.aporte || 0), 0);
-    const ok = calzaPago(tot, c, fin);
-    const det = xs.map(x => `${fin ? 'Financiamiento' : 'Aporte marca'} · Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n');
-    const ref = fin ? (c.sant || 0) : (c.marca || 0) + (c.flota || 0);
-    const calc = ref ? `\nCalculado: ${fmt(ref)} con IVA (${fmt(ref / IVA)} sin IVA)` : '';
-    return `<div><span class="st ok av" title="${esc(det + calc)}">✓ Pagado ${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA${fin ? ' · financ.' : ''}</span>${ok ? '' : '<div class="muted" style="font-size:11px">distinto al calculado</div>'}</div>`;
-  };
-  return `<td class="n">${linea(ps.filter(x => !esPagoFinanciamiento(x)), false)}${linea(ps.filter(esPagoFinanciamiento), true)}</td>`;
+  const lineas = [[false, 'Marca'], [true, 'Financ.']].map(([fin, lab]) => {
+    const xs = ps.filter(x => esPagoFinanciamiento(x) === fin);
+    const e = estadoPago(xs, c, fin);
+    if (!e) return '';
+    if (e.pend) return `<div class="pg"><span class="muted">${lab}: pendiente</span></div>`;
+    const det = xs.map(x => `Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n')
+      + (e.ref ? `\nCalculado: ${fmt(e.ref)} con IVA (${fmt(e.ref / IVA)} sin IVA)` : '');
+    const est = e.ok ? '<span class="st ok">✓ cuadra</span>' : `<span class="st bad">no cuadra${e.dif !== null ? ' · ' + (e.dif > 0 ? '+' : '−') + fmt(Math.abs(Math.round(e.dif))) : ''}</span>`;
+    return `<div class="pg" title="${esc(det)}"><span class="st ok">✓ Pagado ${fmt(e.tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA · ${lab.toLowerCase()}</span><div style="font-size:11.5px">${est}</div></div>`;
+  }).join('');
+  return `<td class="n">${lineas || '<span class="muted">—</span>'}</td>`;
 }
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
@@ -541,7 +551,7 @@ function renderVentas() {
   if (!rows.length) h += `<tr><td colspan="${COLS.length + 8}" class="empty">${S.ventas.length ? 'No hay ventas con estos filtros.' : 'Aún no hay ventas. Sube el informe en la pestaña “Cargar archivos”.'}</td></tr>`;
   for (const v of rows) {
     const c = S.calc.get(v.folio_venta);
-    h += '<tr>' + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}">${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
+    h += `<tr data-fv="${esc(v.folio_venta)}">` + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}">${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
     h += celdaBono(v, c.marca, 'pagado_marca') + celdaBono(v, c.sant, 'pagado_santander') + celdaBono(v, c.flota, 'pagado_flota', c.tramo ? 'Tramo ' + (c.tramo === 'GC' ? 'Grandes Cuentas' : c.tramo.slice(1)) : '');
     { const ex = extrasDe(v).filter(e => Number(e.monto)); const pag = ex.length && ex.every(e => e.pagado);
       h += `<td class="n"><button class="btn-ex ${ex.length ? 'tiene' : ''}" data-ex="${v.folio_venta}" title="${esc(ex.map(e => e.tipo + ': ' + fmt(e.monto) + (e.detalle ? ' · ' + e.detalle : '') + (e.pagado ? ' (pagado)' : '')).join('\n')) || 'Agregar bono adicional'}">${ex.length ? (pag ? '✓ ' : '') + fmt(c.extra) + (ex.length > 1 ? ` (${ex.length})` : '') : '+ Agregar'}</button></td>`; }
@@ -976,13 +986,43 @@ function renderPagos() {
   if (!folios.length) h += '<tr><td colspan="9" class="empty">Aún no hay cartas de pago. Sube el PDF que envía la marca.</td></tr>';
   for (const [folio, xs] of folios) {
     const f = xs[0], sin = xs.filter(x => !ventaDePago(x));
-    h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}">${esc(folio)}</td><td class="n">${f.semana ?? semanaDeFolio(folio) ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
+    h += `<tr><td>${fecha(f.fecha)}</td><td>${esc(nombreMarca(f.marca))}</td><td title="${esc(f.titulo || '')}"><button class="lnk" data-folio="${esc(folio)}">${esc(folio)}</button></td><td class="n">${f.semana ?? semanaDeFolio(folio) ?? ''}</td><td class="n">${xs.length}</td><td class="n">${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))}</td>
       <td class="n"><span class="st ${sin.length ? 'warn' : 'ok'}">${xs.length - sin.length} de ${xs.length}</span></td>
       <td>${esc(NOMBRES[f.cargado_por] || f.cargado_por || '')}</td><td style="text-align:right"><button class="btn sm danger" data-del-pago="${esc(folio)}">Borrar</button></td></tr>`;
     if (sin.length) h += `<tr class="sinventa"><td></td><td colspan="8">Sin venta cargada: ${sin.map(x => `<b>${esc(x.vin)}</b> ${esc([x.modelo, x.version].filter(Boolean).join(' '))}${x.mes_inmat ? ' (inmat. ' + esc(x.mes_inmat) + ' ' + esc(x.anio_inmat || '') + ')' : ''} · ${fmt(x.aporte)}`).join('<br>')}</td></tr>`;
   }
   $('tblPagos').innerHTML = h + '</tbody>';
+  $('tblPagos').querySelectorAll('[data-folio]').forEach(b => b.onclick = () => verFolio(b.dataset.folio));
   $('tblPagos').querySelectorAll('[data-del-pago]').forEach(b => b.onclick = () => borrarPago(b.dataset.delPago));
+}
+function verFolio(folio) {
+  const xs = S.pagos.filter(x => x.folio === folio);
+  const f = xs[0] || {};
+  let h = `<table class="mini"><thead><tr><th>VIN</th><th>Modelo</th><th>Cliente</th><th class="n">Pagado sin IVA</th><th>Cruce</th></tr></thead><tbody>`;
+  for (const x of xs) {
+    const v = ventaDePago(x), c = v && S.calc.get(v.folio_venta);
+    const e = c ? estadoPago([x], c, esPagoFinanciamiento(x)) : null;
+    const cruce = !v ? '<span class="st warn">sin venta cargada</span>' : e && e.ok ? '<span class="st ok">✓ cuadra</span>' : `<span class="st bad">no cuadra${e && e.dif !== null ? ' · ' + (e.dif > 0 ? '+' : '−') + fmt(Math.abs(Math.round(e.dif))) : ''}</span>`;
+    h += `<tr><td>${v ? `<button class="lnk" data-ir="${esc(v.folio_venta)}" title="Ver en Ventas y bonos">${esc(x.vin)}</button>` : esc(x.vin)}</td><td>${esc(x.modelo || '')}</td><td>${esc(v ? v.cliente : '')}</td><td class="n">${fmt(x.aporte)}</td><td>${cruce}</td></tr>`;
+  }
+  h += '</tbody></table>';
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal" style="max-width:860px"><div class="mh"><h3>Carta ${esc(folio)}</h3><div class="muted" style="font-size:12.5px;margin-top:2px">${esc(nombreMarca(f.marca))} · ${fecha(f.fecha)} · ${xs.length} VIN · ${fmt(xs.reduce((s, x) => s + (x.aporte || 0), 0))} + IVA. Haz clic en un VIN para verlo en Ventas y bonos.</div></div><div class="mb" style="overflow:auto">${h}</div><div class="mf"><button class="btn" data-cerrar>Cerrar</button></div></div>`;
+  bg.onclick = (ev) => {
+    const ir = ev.target.closest('[data-ir]');
+    if (ir) { bg.remove(); irAVenta(ir.dataset.ir); return; }
+    if (ev.target === bg || ev.target.closest('[data-cerrar]')) bg.remove();
+  };
+  document.body.appendChild(bg);
+}
+function irAVenta(folioVenta) {
+  const v = S.ventas.find(x => x.folio_venta === folioVenta); if (!v) return;
+  ['fMes', 'fMarca', 'fSucursal', 'fVendedor', 'fBono', 'fEstado'].forEach(id => { $(id).value = ''; });
+  $('fTxt').value = v.chasis || v.folio_venta;
+  document.querySelector('nav.tabs button[data-tab=ventas]').click();
+  renderVentas();
+  const tr = $('tblVentas').querySelector(`tr[data-fv="${CSS.escape(folioVenta)}"]`);
+  if (tr) { tr.classList.add('resalta'); tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => tr.classList.remove('resalta'), 4000); }
 }
 async function borrarPago(folio) {
   const xs = S.pagos.filter(x => x.folio === folio);
