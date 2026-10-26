@@ -30,9 +30,9 @@ function estado(xs, c, fin) {
   return C.calzaPago(tot, c, fin) ? 'PAGADO - CUADRA' : 'PAGADO - NO CUADRA';
 }
 const r0 = (n) => (n === null || n === undefined || isNaN(n)) ? null : Math.round(n);
-function csv(rows) {
-  if (!rows.length) return '';
-  const cols = Object.keys(rows[0]);
+const VACIAS = { metas: ['periodo', 'marca', 'unidades'], pagos: ['folio_carta', 'tipo', 'marca', 'fecha', 'semana', 'vin', 'modelo', 'version', 'canal', 'estado', 'aporte_sin_iva', 'folio_venta', 'cliente'] };
+function csv(rows, tabla) {
+  const cols = rows.length ? Object.keys(rows[0]) : (VACIAS[tabla] || []);
   const q = (v) => v === null || v === undefined ? '' : /[",\n;]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   return '﻿' + [cols.join(','), ...rows.map(r => cols.map(c => q(r[c])).join(','))].join('\n');
 }
@@ -74,6 +74,6 @@ module.exports = async (req, res) => {
     }
     res.setHeader('Cache-Control', 'no-store');
     if (String(req.query.formato) === 'json') { res.json(rows); return; }
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.send(csv(rows));
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.send(csv(rows, tabla));
   } catch (e) { res.status(500).send('Error: ' + e.message); }
 };
