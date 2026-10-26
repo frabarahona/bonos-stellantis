@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
       const pagVin = indexar(pagos, 'vin'), venVin = indexar(ventas, 'chasis');
       const calc = new Map(ventas.map(x => [x.folio_venta, C.calcularBonos(x, idxP, idxB)]));
       if (tabla === 'pagos') {
-        rows = pagos.map(x => { const vv = buscar(venVin, x.vin)[0]; return { folio_carta: x.folio, tipo: C.esPagoFinanciamiento(x) ? 'Financiamiento' : 'Aporte marca', marca: x.marca, fecha: x.fecha, semana: x.semana, vin: x.vin, modelo: x.modelo, version: x.version, canal: x.canal, estado: x.estado, aporte_sin_iva: x.aporte, folio_venta: vv ? vv.folio_venta : null, cliente: vv ? vv.cliente : null }; });
+        rows = pagos.map(x => { const vv = buscar(venVin, x.vin)[0]; return { folio_carta: x.folio, tipo: C.esPagoFinanciamiento(x) ? 'Financiamiento' : 'Aporte marca', marca: x.marca, fecha: x.fecha, semana: x.semana, vin: x.vin, modelo: x.modelo, version: x.version, canal: String(x.canal || '').replace(/\s*\$\s*$/, '') || null, estado: x.estado, aporte_sin_iva: x.aporte, folio_venta: vv ? vv.folio_venta : null, cliente: vv ? vv.cliente : null }; });
       } else {
         rows = ventas.map(x => {
           const c = calc.get(x.folio_venta), ps = buscar(pagVin, x.chasis), pm = ps.filter(y => !C.esPagoFinanciamiento(y)), pf = ps.filter(C.esPagoFinanciamiento);

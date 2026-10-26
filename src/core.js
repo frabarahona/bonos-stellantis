@@ -495,7 +495,7 @@ function parseCartaBono(paginas, archivo) {
         if (!vinIt) continue;
         const entre = (a, b) => r.filter(t => t !== vinIt && t.x >= (a ?? -1e9) - 12 && t.x < (b ?? 1e9) - 12).map(t => t.s.trim()).filter(Boolean);
         const antes = r.filter(t => t.x < vinIt.x && t.s.trim()).map(t => t.s.trim());
-        const prod = entre(xProd, xMonto).join(' ').toUpperCase() || null;
+        const prod = entre(xProd, xMonto).filter(s => s !== '$').join(' ').toUpperCase() || null;
         const est = estados.filter(t => t.y > y).sort((a, b) => a.y - b.y)[0];
         res.filas.push({
           vin: vinIt.s.trim().toUpperCase(),
