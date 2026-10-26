@@ -462,7 +462,7 @@ function parseCartaBono(paginas, archivo) {
   const todo = paginas.flat();
   const textos = todo.map(t => t.s.trim()).filter(Boolean);
   const res = { tipo: 'pago', archivo, folio: null, marca: null, titulo: null, semana: null, fecha: null, total: null, filas: [] };
-  const titulo = textos.find(t => /^APORTE .* - SEMANA/i.test(norm(t))) || textos.find(t => /^APORTE BONO/i.test(norm(t)));
+  const titulo = textos.find(t => /^APORTE .* - SEMANA/i.test(norm(t))) || textos.filter(t => /^APORTE BONO/i.test(norm(t))).sort((a, b) => b.length - a.length)[0];
   if (titulo) {
     res.titulo = titulo.trim();
     res.marca = marcaDesdeTexto(titulo);
@@ -479,8 +479,38 @@ function parseCartaBono(paginas, archivo) {
   for (const pg of paginas) {
     const filas = new Map();
     for (const t of pg) { if (!t.s.trim()) continue; const k = Math.round(t.y); if (!filas.has(k)) filas.set(k, []); filas.get(k).push(t); }
-    const head = [...filas.values()].find(r => r.some(t => norm(t.s) === 'VIN') && r.some(t => /APORTE/.test(norm(t.s))));
+    const head = [...filas.values()].find(r => r.some(t => norm(t.s) === 'VIN') && r.some(t => /APORTE|MONTO/.test(norm(t.s))));
     if (!head) continue;
+    // Carta de bono de financiamiento (Santander): MODELO · VERSIÓN · VIN · N° OPERACIÓN · RUT · FECHA CURSE · PRODUCTO BASE · MONTO NETO
+    if (head.some(t => /^PRODUCTO/.test(norm(t.s)))) {
+      res.tipo_carta = 'financiamiento';
+      const hx = (re) => { const h = head.find(t => re.test(norm(t.s))); return h ? h.x : null; };
+      const xVin = hx(/^VIN$/), xFecha = hx(/^FECHA/), xProd = hx(/^PRODUCTO/), xMonto = hx(/^MONTO/);
+      const yHead = Math.round(head[0].y);
+      const estados = pg.filter(t => /^(APROBADO|RECHAZADO|PENDIENTE)$/.test(norm(t.s).trim()));
+      for (const [y, r] of filas) {
+        if (y >= yHead) continue;
+        r.sort((a, b) => a.x - b.x);
+        const vinIt = r.find(t => RE_VIN.test(t.s.trim()));
+        if (!vinIt) continue;
+        const entre = (a, b) => r.filter(t => t !== vinIt && t.x >= (a ?? -1e9) - 12 && t.x < (b ?? 1e9) - 12).map(t => t.s.trim()).filter(Boolean);
+        const antes = r.filter(t => t.x < vinIt.x && t.s.trim()).map(t => t.s.trim());
+        const prod = entre(xProd, xMonto).join(' ').toUpperCase() || null;
+        const est = estados.filter(t => t.y > y).sort((a, b) => a.y - b.y)[0];
+        res.filas.push({
+          vin: vinIt.s.trim().toUpperCase(),
+          modelo: antes[0] || null,
+          version: antes.slice(1).join(' ') || null,
+          mes_inmat: entre(xFecha, xProd).join(' ') || null,
+          anio_inmat: null,
+          canal: 'Financiamiento' + (prod ? ' ' + prod : ''),
+          aporte: entre(xMonto, null).filter(s => s !== '$').map(montoCLP).filter(n => n !== null)[0] ?? null,
+          diferencia: 0,
+          estado: est ? est.s.trim() : null,
+        });
+      }
+      continue;
+    }
     const hx = (re) => { const h = head.find(t => re.test(norm(t.s))); return h ? h.x : null; };
     const X = { modelo: hx(/^MODELO/), version: hx(/^VERSION/), mes: hx(/^MES/), anio: hx(/^ANO|^AÑO/), canal: hx(/^CANAL/), aporte: hx(/^APORTE/), dif: hx(/^DIFERENCIA/) };
     const yHead = Math.round(head[0].y);
@@ -510,9 +540,10 @@ function parseCartaBono(paginas, archivo) {
   return res;
 }
 // ¿El pago calza con lo calculado? La carta viene sin IVA; el cálculo está con IVA.
-function calzaPago(pagado, c) {
-  const cands = [c.marca, c.flota, (c.marca || 0) + (c.flota || 0)].filter(x => x);
+function esPagoFinanciamiento(x) { return /^FINANCIAMIENTO/i.test(x && x.canal || ''); }
+function calzaPago(pagado, c, fin) {
+  const cands = (fin ? [c.sant] : [c.marca, c.flota, (c.marca || 0) + (c.flota || 0)]).filter(x => x);
   return cands.some(x => Math.abs(x / IVA - pagado) <= TOL || Math.abs(x - pagado) <= TOL);
 }
 
-if (typeof module !== 'undefined') module.exports = { semanaDeFolio, semanaISO, parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };
+if (typeof module !== 'undefined') module.exports = { esPagoFinanciamiento, semanaDeFolio, semanaISO, parseCartaBono, calzaPago,  financieraDe, margenDe, extrasDe, TIPOS_EXTRA, periodoDesdeRuta, norm, num, detectarArchivo, parseListaPrecios, parseB2B, parseInforme, indexarPrecios, indexarB2B, calcularBonos, periodoDeVenta, CLASIF, MESES_NOMBRE, TOL };

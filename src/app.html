@@ -513,11 +513,16 @@ function ventaDePago(x) { return buscarPorVin(S.ventasVin || new Map(), x.vin)[0
 function celdaPagoMarca(v, c) {
   const ps = pagosDe(v);
   if (!ps.length) return '<td class="n muted">—</td>';
-  const tot = ps.reduce((s, x) => s + (x.aporte || 0), 0);
-  const ok = calzaPago(tot, c);
-  const det = ps.map(x => `Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n');
-  const calc = c.marca || c.flota ? `\nCalculado: ${fmt((c.marca || 0) + (c.flota || 0))} con IVA (${fmt(((c.marca || 0) + (c.flota || 0)) / IVA)} sin IVA)` : '';
-  return `<td class="n"><span class="st ok av" title="${esc(det + calc)}">✓ Pagado ${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA</span>${ok ? '' : '<div class="muted" style="font-size:11px" title="' + esc(det + calc) + '">distinto al calculado</div>'}</td>`;
+  const linea = (xs, fin) => {
+    if (!xs.length) return '';
+    const tot = xs.reduce((s, x) => s + (x.aporte || 0), 0);
+    const ok = calzaPago(tot, c, fin);
+    const det = xs.map(x => `${fin ? 'Financiamiento' : 'Aporte marca'} · Folio ${x.folio} · ${fecha(x.fecha)} · ${x.estado || ''} · ${fmt(x.aporte)} + IVA${x.diferencia ? ' · dif. precio ' + fmt(x.diferencia) : ''}`).join('\n');
+    const ref = fin ? (c.sant || 0) : (c.marca || 0) + (c.flota || 0);
+    const calc = ref ? `\nCalculado: ${fmt(ref)} con IVA (${fmt(ref / IVA)} sin IVA)` : '';
+    return `<div><span class="st ok av" title="${esc(det + calc)}">✓ Pagado ${fmt(tot)}</span> <span class="muted" style="font-size:11.5px">+ IVA${fin ? ' · financ.' : ''}</span>${ok ? '' : '<div class="muted" style="font-size:11px">distinto al calculado</div>'}</div>`;
+  };
+  return `<td class="n">${linea(ps.filter(x => !esPagoFinanciamiento(x)), false)}${linea(ps.filter(esPagoFinanciamiento), true)}</td>`;
 }
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
@@ -832,7 +837,7 @@ async function leerArchivos(lista) {
       const buf = await file.arrayBuffer();
       if (/\.pdf$/i.test(file.name)) {
         const r = parseCartaBono(await textoPdf(buf), file.name);
-        if (!r.filas.length) { toast(`"${file.name}" no parece una carta de aporte de la marca: no encontré VIN en el anexo.`, true); continue; }
+        if (!r.filas.length) { toast(`"${file.name}" no parece una carta de aporte de la marca ni de bono de financiamiento: no encontré VIN en el anexo.`, true); continue; }
         r.archivo = ruta;
         S.pendientes = S.pendientes.filter(x => x.archivo !== ruta);
         S.pendientes.push(r);
