@@ -281,6 +281,43 @@ td.sticky{font-size:12.5px}
   #app>header.top .user{margin:0 0 0 auto;border:0;padding:0;flex-wrap:nowrap}#app>header.top .user #userName{display:none}#app>header.top .user .btn{width:auto}
   #app>main{margin-left:0}.minis{grid-template-columns:1fr}.minis .mn:last-child{grid-column:auto}
 }
+
+/* --- Vista fija: la página no se desplaza, solo la tabla --- */
+@media (min-width:861px){
+  html,body{height:100%;overflow:hidden}
+  #app>main{height:100vh;overflow:auto;padding:18px 22px 16px}
+  #tab-ventas:not(.hidden),#tab-precios:not(.hidden){display:flex;flex-direction:column;height:calc(100vh - 34px)}
+  #tab-ventas>.panel,#tab-precios>.panel{flex:1;min-height:0;display:flex;flex-direction:column}
+  #tab-ventas .tablewrap,#tab-precios .tablewrap{flex:1;max-height:none;min-height:140px}
+  #app>header.top{padding:16px 12px 14px}
+}
+.ph .btn.sm{margin-left:4px}
+details.legend{max-width:none}
+details.legend summary{cursor:pointer;color:var(--accent);font-weight:600;list-style:none}
+details.legend summary::-webkit-details-marker{display:none}
+details.legend summary::before{content:'ⓘ ';}
+details.legend[open] summary{margin-bottom:6px}
+.mn-bars i{flex:none}
+#tip{position:fixed;z-index:200;max-width:380px;background:#1d2227;color:#fff;font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:pre-line;pointer-events:none;opacity:0;transition:opacity .08s}
+#tip.on{opacity:1}
+.cell-bono span[data-tip]:not([data-tip=""]){border-bottom:1px dotted #9aa3ab;cursor:help}
+.kpi[data-tip],.kpi[title]{cursor:help}
+.clic{cursor:pointer}
+.br.clic:hover .lb,tr.clic:hover td{color:var(--accent)}
+tr.clic:hover td{background:#f4f8f8}
+.br2{grid-template-columns:72px 1fr 230px}
+.br2 .tr{height:12px;border-radius:3px;overflow:hidden}
+.evo2{display:flex;align-items:flex-end;gap:8px;height:150px}
+.evo2 button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;background:none;border:0;padding:0;cursor:pointer;min-width:0;font-size:11.5px}
+.evo2 i{display:block;width:100%;max-width:42px;background:#c9d6e3;border-radius:4px 4px 0 0;min-height:3px;flex:none;transition:background .1s}
+.evo2 button:hover i{background:#7fa1c4}
+.evo2 button.on i{background:var(--accent)}
+.evo2 b{margin-bottom:3px;font-variant-numeric:tabular-nums}
+.evo2 span{margin-top:5px;color:var(--ink2);white-space:nowrap}
+.trk{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.mn-bars>div,.evo2 button{justify-content:flex-end}
+.toolbar select{max-width:132px!important}.toolbar .grow{min-width:90px!important}
+@media (min-width:1350px){#tab-ventas .toolbar{flex-wrap:nowrap}}
 </style>
 </head>
 <body>
@@ -317,7 +354,7 @@ td.sticky{font-size:12.5px}
   <main>
     <!-- VENTAS -->
     <div id="tab-ventas">
-      <div class="ph"><h1>Ventas y bonos</h1><span class="upd" id="updVentas"></span></div>
+      <div class="ph"><h1>Ventas y bonos</h1><span class="upd" id="updVentas"></span><button class="btn sm" id="btnMinis" type="button">Ocultar gráficos</button></div>
       <div class="kpis" id="kpis"></div>
       <div class="minis" id="minis"></div>
       <div class="panel">
@@ -344,10 +381,10 @@ td.sticky{font-size:12.5px}
           <button class="btn" id="btnExport">Exportar Excel</button>
         </div>
         <div class="tablewrap"><table id="tblVentas"></table></div>
-        <div class="legend">
+        <details class="legend"><summary>¿Cómo se calcula cada bono?</summary>
           <b>Bono marca</b> = aporte Stellantis de la lista del mes de facturación (bono − aporte red). <b>Santander</b> = aporte financiera CC o CI. <b>Flota</b> = % Stellantis de la tabla B2B × precio lista neto + IVA.
           <b>Adicionales</b> = bonos SELL IN u otros que se registran a mano en cada venta. <b>Diferencia</b> = bono del informe − (bonos calculados + adicionales). La forma de pago sale automática del Tipo Venta; si la cambias queda marcada en azul. Santander aplica cuando el Tipo Venta o la Entidad Crédito es Santander, o el Tipo Venta es CREDITO sin otra financiera. ☑ marca el bono como pagado.
-        </div>
+        </details>
       </div>
     </div>
 
@@ -371,6 +408,12 @@ td.sticky{font-size:12.5px}
         <div class="dc-row">
           <div class="dc-cell"><h3>Tipo de venta</h3><div id="sFormas"></div></div>
           <div class="dc-cell"><h3>Financiamiento</h3><div id="sFin"></div></div>
+        </div>
+        <div class="dc-row one">
+          <div class="dc-cell"><h3>Evolución mensual <span>clic en un mes para filtrar</span></h3><div id="sEvo"></div></div>
+        </div>
+        <div class="dc-row one">
+          <div class="dc-cell"><h3>Bonos por cobrar por marca <span>clic para ver las ventas pendientes</span></h3><div id="sCobro"></div></div>
         </div>
         <div class="dc-row one">
           <div class="dc-cell"><h3>Top vendedores <button class="dc-link" id="sVerTodos" type="button">Ver todos</button></h3><div id="sRank" style="overflow-x:auto"></div></div>
@@ -1063,6 +1106,23 @@ function recalcular() {
   for (const v of S.ventas) for (const k of clavesVin(v.chasis)) { if (!S.ventasVin.has(k)) S.ventasVin.set(k, []); S.ventasVin.get(k).push(v); }
   S.calc = new Map(); for (const v of S.ventas) S.calc.set(v.folio_venta, calcularBonos(v, S.idxP, S.idxB)); }
 
+/* ---------- Tooltip rápido ---------- */
+(() => {
+  const tip = document.createElement('div'); tip.id = 'tip'; document.body.appendChild(tip);
+  let cur = null;
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('[title],[data-tip]'); if (!el || el.tagName === 'SELECT') return;
+    if (el.hasAttribute('title')) { el.dataset.tip = el.getAttribute('title'); el.removeAttribute('title'); }
+    if (!el.dataset.tip) return;
+    cur = el; tip.textContent = el.dataset.tip; tip.classList.add('on');
+  });
+  document.addEventListener('mousemove', (e) => { if (!cur) return; const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 16; if (x + w > innerWidth - 8) x = e.clientX - w - 10; if (y + h > innerHeight - 8) y = e.clientY - h - 12; tip.style.left = x + 'px'; tip.style.top = y + 'px'; });
+  document.addEventListener('mouseout', (e) => { if (cur && !cur.contains(e.relatedTarget)) { cur = null; tip.classList.remove('on'); } });
+})();
+{ let oc = false; try { oc = localStorage.getItem('minisOcultos') === '1'; } catch (e) {}
+  const ap = () => { $('minis').classList.toggle('hidden', oc); $('btnMinis').textContent = oc ? 'Mostrar gráficos' : 'Ocultar gráficos'; };
+  $('btnMinis').onclick = () => { oc = !oc; try { localStorage.setItem('minisOcultos', oc ? '1' : '0'); } catch (e) {} ap(); }; ap(); }
+
 /* ---------- Tabs ---------- */
 document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'stats') renderStats();
@@ -1241,11 +1301,11 @@ function renderMinis(rows) {
   const cm = { Peugeot: 0, Opel: 0, 'Citroën': 0, Otras: 0 };
   rows.forEach(v => { const k = marcaKey(v.marca); cm[k === 'PEUGEOT' ? 'Peugeot' : k === 'OPEL' ? 'Opel' : k === 'CITROEN' ? 'Citroën' : 'Otras']++; });
   const mx = Math.max(1, ...Object.values(cm));
-  const barras = `<div class="mn-bars">${Object.entries(cm).map(([k, x]) => `<div title="${k}: ${x} ventas"><b>${x}</b><i style="height:${x / mx * 100}%"></i><span>${k}</span></div>`).join('')}</div>`;
+  const barras = `<div class="mn-bars">${Object.entries(cm).map(([k, x]) => `<div title="${k}: ${x} ventas"><div class="trk"><b>${x}</b><i style="height:calc((100% - 18px) * ${x / mx})"></i></div><span>${k}</span></div>`).join('')}</div>`;
   const mk = $('fMarca').value, su = $('fSucursal').value, porMes = new Map();
   for (const v of S.ventas) { if (!coincideMarca(v.marca, mk) || (su && v.sucursal !== su)) continue; const pm = periodoDeVenta(v); if (!pm) continue; const c = S.calc.get(v.folio_venta), e = estadoVenta(v, c); const o = porMes.get(pm) || { t: 0, c: 0 }; o.t += e.pendiente + e.cobrado; o.c += e.cobrado; porMes.set(pm, o); }
   const meses = [...porMes.keys()].sort().slice(-8), mt = Math.max(1, ...meses.map(m => porMes.get(m).t));
-  const evo = `<div class="mn-bars evo">${meses.map(m => { const o = porMes.get(m); return `<div title="${mesLabel(m)}: bonos ${fmt(o.t)} · cobrado ${fmt(o.c)}"><b>${MM(o.t)}</b><i style="height:${o.t / mt * 100}%"><em style="height:${o.t ? o.c / o.t * 100 : 0}%"></em></i><span>${MESES_NOMBRE[Number(m.slice(5, 7))].slice(0, 3)}</span></div>`; }).join('') || '<div class="dc-empty">Sin datos</div>'}</div>`;
+  const evo = `<div class="mn-bars evo">${meses.map(m => { const o = porMes.get(m); return `<div title="${mesLabel(m)}: bonos ${fmt(o.t)} · cobrado ${fmt(o.c)}"><div class="trk"><b>${MM(o.t)}</b><i style="height:calc((100% - 18px) * ${o.t / mt})"><em style="height:${o.t ? o.c / o.t * 100 : 0}%"></em></i></div><span>${MESES_NOMBRE[Number(m.slice(5, 7))].slice(0, 3)}</span></div>`; }).join('') || '<div class="dc-empty">Sin datos</div>'}</div>`;
   $('minis').innerHTML = `<div class="mn"><h3>Ventas por estado de pago</h3><div class="mn-row">${donut}</div></div>
     <div class="mn"><h3>Ventas por marca</h3>${barras}</div>
     <div class="mn"><h3>Bonos por mes <small><i class="sw"></i>generado <i class="sw ok"></i>cobrado</small></h3>${evo}</div>`;
@@ -1284,6 +1344,33 @@ const NOM_MARCA = { PEUGEOT: 'Peugeot', OPEL: 'Opel', CITROEN: 'Citroën' };
 const marcaKey = (m) => { const t = norm(m); return t.startsWith('PEUG') ? 'PEUGEOT' : t.startsWith('OPEL') ? 'OPEL' : t.startsWith('CITRO') ? 'CITROEN' : t; };
 ['sMes', 'sMarca', 'sSucursal'].forEach(id => $(id).onchange = renderStats);
 $('sVerTodos').onclick = () => { S.statsTodos = !S.statsTodos; renderStats(); };
+function opcionMarca(sel, key) { const o = [...sel.options].find(x => x.value && x.value !== STELLANTIS && marcaKey(x.value) === key); return o ? o.value : ''; }
+function irVentas(o) {
+  ['fMes', 'fMarca', 'fSucursal', 'fVendedor', 'fBono', 'fEstado'].forEach(id => { $(id).value = ''; }); $('fTxt').value = '';
+  const sm = $('sMes').value; if (sm && [...$('fMes').options].some(x => x.value === sm)) $('fMes').value = sm;
+  if ($('sSucursal').value) $('fSucursal').value = $('sSucursal').value;
+  const mk = o.marca || $('sMarca').value; if (mk) $('fMarca').value = [...$('fMarca').options].some(x => x.value === mk) ? mk : opcionMarca($('fMarca'), mk);
+  if (o.vendedor) $('fVendedor').value = o.vendedor;
+  if (o.estado) $('fEstado').value = o.estado;
+  document.querySelector('nav.tabs button[data-tab=ventas]').click(); renderVentas();
+  $('tblVentas').closest('.tablewrap').scrollTop = 0;
+}
+function renderStatsExtra(rows, mes, mk, su) {
+  // Evolución mensual: ignora el filtro de mes para mostrar la tendencia
+  const base = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su));
+  const pm = new Map();
+  for (const v of base) { const m = periodoDeVenta(v); if (!m) continue; const c = S.calc.get(v.folio_venta), e = estadoVenta(v, c); const o = pm.get(m) || { n: 0, f: 0, b: 0, c: 0 }; o.n++; o.f += (v.unidad_venta || 0) * IVA; o.b += e.pendiente + e.cobrado; o.c += e.cobrado; pm.set(m, o); }
+  const ms = [...pm.keys()].sort().slice(-12), mx = Math.max(1, ...ms.map(m => pm.get(m).n));
+  $('sEvo').innerHTML = ms.length ? `<div class="evo2">${ms.map(m => { const o = pm.get(m); return `<button class="${m === mes ? 'on' : ''}" data-m="${m}" title="${mesLabel(m)}&#10;${o.n} ventas · facturado ${fmt(o.f)}&#10;bonos ${fmt(o.b)} · cobrado ${fmt(o.c)}"><div class="trk"><b>${o.n}</b><i style="height:calc((100% - 18px) * ${o.n / mx})"></i></div><span>${MESES_NOMBRE[Number(m.slice(5, 7))].slice(0, 3)} ${m.slice(2, 4)}</span></button>`; }).join('')}</div>` : '<div class="dc-empty">Sin ventas.</div>';
+  $('sEvo').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { $('sMes').value = $('sMes').value === b.dataset.m ? '' : b.dataset.m; renderStats(); });
+  // Bonos por cobrar por marca (cobrado vs pendiente)
+  const pb = {};
+  for (const v of rows) { const k = marcaKey(v.marca); if (!['PEUGEOT', 'OPEL', 'CITROEN'].includes(k)) continue; const e = estadoVenta(v, S.calc.get(v.folio_venta)); const o = pb[k] || (pb[k] = { p: 0, c: 0 }); o.p += e.pendiente; o.c += e.cobrado; }
+  const mb = Math.max(1, ...Object.values(pb).map(o => o.p + o.c));
+  $('sCobro').innerHTML = ['PEUGEOT', 'OPEL', 'CITROEN'].map(k => { const o = pb[k] || { p: 0, c: 0 }, t = o.p + o.c;
+    return `<div class="br br2 clic" data-mk="${k}" title="${NOM_MARCA[k]}: pendiente ${fmt(o.p) || '$0'} · cobrado ${fmt(o.c) || '$0'}&#10;Clic para ver las ventas pendientes"><span class="lb">${NOM_MARCA[k]}</span><span class="tr"><i style="width:${o.c / mb * 100}%;background:var(--ok2)"></i><i style="left:${o.c / mb * 100}%;width:${o.p / mb * 100}%;background:var(--amb)"></i></span><span class="vl"><strong>${MM(o.p)}</strong> <small>pendiente · ${t ? Math.round(o.c / t * 100) : 0}% cobrado</small></span></div>`; }).join('');
+  $('sCobro').querySelectorAll('[data-mk]').forEach(t => t.onclick = () => irVentas({ marca: t.dataset.mk, estado: 'pend' }));
+}
 function llenarFiltrosStats() {
   const uniq = (a) => [...new Set(a.filter(Boolean))].sort();
   const meses = uniq(S.ventas.map(periodoDeVenta)).reverse();
@@ -1318,7 +1405,7 @@ function renderStats() {
   rows.forEach(v => { const m = marcaKey(v.marca); if (m in cuenta) cuenta[m]++; });
   const maxM = Math.max(1, ...Object.values(cuenta));
   $('sMarcas').innerHTML = Object.entries(cuenta).map(([m, c]) =>
-    `<div class="br" title="${NOM_MARCA[m]}: ${c} venta(s)${n ? ' · ' + Math.round(c / n * 100) + '%' : ''}"><span class="lb">${NOM_MARCA[m]}</span><span class="tr"><i style="width:${c / maxM * 100}%;background:${COL_MARCA[m]}"></i></span><span class="vl">${c} <small>${n ? Math.round(c / n * 100) + '%' : ''}</small></span></div>`).join('');
+    `<div class="br clic" data-mk="${m}" title="Clic para filtrar por ${NOM_MARCA[m]} · ${c} venta(s)${n ? ' · ' + Math.round(c / n * 100) + '%' : ''}"><span class="lb">${NOM_MARCA[m]}</span><span class="tr"><i style="width:${c / maxM * 100}%;background:${COL_MARCA[m]}"></i></span><span class="vl">${c} <small>${n ? Math.round(c / n * 100) + '%' : ''}</small></span></div>`).join('');
 
   // Ventas vs meta (escala hasta 125% para que la línea del 100% se vea)
   // Con un mes: meta editable. Con todos los meses: acumulado de los meses que tienen meta (solo lectura).
@@ -1363,7 +1450,10 @@ function renderStats() {
   const ver = S.statsTodos ? rk : rk.slice(0, 3);
   $('sVerTodos').classList.toggle('hidden', rk.length <= 3);
   $('sVerTodos').textContent = S.statsTodos ? 'Ver top 3' : `Ver todos (${rk.length})`;
-  $('sRank').innerHTML = ver.length ? `<table class="top3">${ver.map(([nm, r], i) => `<tr><td class="pos">${i + 1}.</td><td class="nm" title="${esc(nm)}">${esc(nm)}</td><td class="n">${r.n}<span class="u">${r.n === 1 ? 'venta' : 'ventas'}</span></td><td class="n" title="${fmt(r.f)}">${MM(r.f)}</td><td class="n" title="${r.ok ? fmt(r.m) : ''}">${r.ok ? MM(r.m) : '—'}<span class="u">margen</span></td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin ventas.</div>';
+  renderStatsExtra(rows, mes, mk, su);
+  $('sRank').innerHTML = ver.length ? `<table class="top3">${ver.map(([nm, r], i) => `<tr class="clic" data-vend="${esc(nm)}" title="Ver las ventas de ${esc(nm)}"><td class="pos">${i + 1}.</td><td class="nm" title="${esc(nm)}">${esc(nm)}</td><td class="n">${r.n}<span class="u">${r.n === 1 ? 'venta' : 'ventas'}</span></td><td class="n" title="${fmt(r.f)}">${MM(r.f)}</td><td class="n" title="${r.ok ? fmt(r.m) : ''}">${r.ok ? MM(r.m) : '—'}<span class="u">margen</span></td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin ventas.</div>';
+  $('sRank').querySelectorAll('[data-vend]').forEach(t => t.onclick = () => irVentas({ vendedor: t.dataset.vend }));
+  $('sMarcas').querySelectorAll('[data-mk]').forEach(t => t.onclick = () => { const o = opcionMarca($('sMarca'), t.dataset.mk); $('sMarca').value = $('sMarca').value === o ? '' : o; renderStats(); });
 }
 async function guardarMeta(mes, marca, valor) {
   const u = valor === '' ? null : Math.max(0, Math.round(Number(valor)));
