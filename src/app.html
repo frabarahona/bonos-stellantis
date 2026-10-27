@@ -52,7 +52,7 @@ header.top .user{margin-left:auto;display:flex;gap:12px;align-items:center;font-
 main{padding:22px 24px 40px;max-width:1800px;margin:0 auto}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
-.toolbar select,.toolbar input{padding:6px 8px;border:1px solid var(--line);border-radius:var(--r);background:#fff;max-width:172px}
+.toolbar select,.toolbar input{padding:6px 8px;max-width:150px!important;border:1px solid var(--line);border-radius:var(--r);background:#fff;max-width:172px}
 .toolbar .grow{flex:1;min-width:150px;max-width:none}
 /* resumen de bonos */
 .kpis{display:grid;grid-template-columns:1.5fr repeat(4,1fr) .8fr;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px}
@@ -218,8 +218,8 @@ header.top .user .btn:hover{background:rgba(255,255,255,.08);color:#fff}
 .panel,.kpis{border-color:var(--line);box-shadow:0 1px 2px rgba(16,24,40,.05)}
 .kpi:first-child{background:#f4f8f8;border-radius:10px 0 0 10px}
 .btn{border-radius:6px}
-.btn.primary,#btnExport,#pExport,#sExport,#btnRefresh{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.primary:hover,#btnExport:hover,#pExport:hover,#sExport:hover,#btnRefresh:hover{background:var(--accent-ink)}
+.btn.primary,#btnExport,#pExport,#sExport,#cExport,#btnRefresh{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover,#btnExport:hover,#pExport:hover,#sExport:hover,#cExport:hover,#btnRefresh:hover{background:var(--accent-ink)}
 .toolbar select,.toolbar input,.inp{border-radius:6px}
 th{background:#f7f9fa}
 .st.ok,.st.warn,.st.bad{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:1.5}
@@ -229,6 +229,58 @@ th{background:#f7f9fa}
 .pg .muted{display:inline-block;padding:2px 8px;border-radius:999px;background:#fdf0dc;color:#9a5b00;font-size:12px}
 td.sticky,th.sticky{max-width:190px;width:190px;overflow:hidden;text-overflow:ellipsis}
 td.sticky{font-size:12.5px}
+
+/* --- Barra lateral y vistas (estilo propuesto) --- */
+:root{--ok2:#22a05a;--amb:#f0a020;--side:216px}
+#app>header.top{position:fixed;left:0;top:0;bottom:0;width:var(--side);height:auto;flex-direction:column;align-items:stretch;gap:0;padding:18px 12px;box-shadow:none}
+#app>header.top .logo{flex-direction:column;align-items:flex-start;gap:6px;padding:0 8px 18px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.1);align-self:stretch}
+#app>header.top .logo img{height:22px}
+#app>header.top .logo span{border:0;padding:0;font-size:12px}
+#app nav.tabs{flex-direction:column;gap:2px}
+#app nav.tabs button{display:flex;align-items:center;gap:10px;padding:10px 10px;border:0;border-radius:8px;text-align:left;font-size:13.5px}
+#app nav.tabs button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#app nav.tabs button:hover{background:rgba(255,255,255,.06)}
+#app nav.tabs button.on{background:#0d5c63;color:#fff}
+#app>header.top .user{margin:auto 0 0;flex-wrap:wrap;padding:14px 8px 0;border-top:1px solid rgba(255,255,255,.1);gap:10px}
+#app>header.top .user #userName{order:2;flex:1;min-width:0;font-size:12.5px;line-height:1.2}
+#app>header.top .user .av{order:1}
+#app>header.top .user .btn{order:3;width:100%}
+#app>main{margin-left:var(--side);max-width:none}
+.ph{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 14px}
+.ph h1{margin:0;font-size:24px;font-weight:700;font-stretch:88%;letter-spacing:-.01em}
+.upd{margin-left:auto;font-size:12px;color:var(--ink3);font-weight:400}
+.upd b{color:var(--ink2);font-weight:600}
+.ph .btn{margin-left:4px}
+.dc-h h2 .upd{margin-left:10px;display:inline}
+.dc{max-width:none}
+.minis{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:14px;margin-bottom:14px}
+.mn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px 14px;box-shadow:0 1px 2px rgba(16,24,40,.05);min-width:0}
+.mn h3{margin:0 0 10px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.mn h3 small{margin-left:auto;font-weight:400;color:var(--ink3);font-size:11.5px;display:flex;align-items:center;gap:4px}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;background:#1d4ed8;margin-left:6px}.sw.ok{background:var(--ok2)}
+.mn-row{display:flex;align-items:center;gap:18px}
+.mn-donut{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;flex:none}
+.mn-donut>div{width:76px;height:76px;border-radius:50%;background:#fff;display:grid;place-items:center;align-content:center;line-height:1.05}
+.mn-donut b{font-size:22px;font-stretch:85%}.mn-donut small{font-size:11px;color:var(--ink3)}
+.mn-leg{display:grid;gap:7px;font-size:12.5px;flex:1}
+.mn-leg div{display:flex;align-items:center;gap:7px}.mn-leg i{width:9px;height:9px;border-radius:50%}
+.mn-leg b{margin-left:auto;font-variant-numeric:tabular-nums}.mn-leg small{width:34px;text-align:right;color:var(--ink3)}
+.mn-bars{display:flex;align-items:flex-end;gap:12px;height:122px;padding-top:4px}
+.mn-bars>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;font-size:11.5px}
+.mn-bars i{display:block;width:100%;max-width:44px;background:#1d4ed8;border-radius:4px 4px 0 0;min-height:2px;position:relative}
+.mn-bars em{position:absolute;left:0;right:0;bottom:0;background:var(--ok2);border-radius:4px 4px 0 0}
+.mn-bars b{font-size:11.5px;margin-bottom:3px;font-variant-numeric:tabular-nums}
+.mn-bars span{color:var(--ink2);margin-top:5px;white-space:nowrap}
+.mn-bars.evo{gap:8px}
+.st.gris{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef0f2;color:#5b6470}
+@media (max-width:1100px){.minis{grid-template-columns:1fr 1fr}.minis .mn:last-child{grid-column:1/-1}}
+@media (max-width:860px){
+  #app>header.top{position:sticky;bottom:auto;width:auto;flex-direction:row;align-items:center;padding:8px 12px;gap:10px;overflow-x:auto}
+  #app>header.top .logo{border:0;padding:0;margin:0}#app>header.top .logo span{display:none}
+  #app nav.tabs{flex-direction:row}#app nav.tabs button span{display:none}
+  #app>header.top .user{margin:0 0 0 auto;border:0;padding:0;flex-wrap:nowrap}#app>header.top .user #userName{display:none}#app>header.top .user .btn{width:auto}
+  #app>main{margin-left:0}.minis{grid-template-columns:1fr}.minis .mn:last-child{grid-column:auto}
+}
 </style>
 </head>
 <body>
@@ -254,10 +306,10 @@ td.sticky{font-size:12.5px}
   <header class="top">
     <div class="logo"><img src="data:image/png;base64,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" alt="Alameda"><span>Bonos Stellantis</span></div>
     <nav class="tabs">
-      <button data-tab="ventas" class="on">Ventas y bonos</button>
-      <button data-tab="stats">Estadísticas</button>
-      <button data-tab="precios">Listas de precios</button>
-      <button data-tab="cargar">Cargar archivos</button>
+      <button data-tab="ventas" class="on"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg><span>Ventas y bonos</span></button>
+      <button data-tab="stats"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg><span>Estadísticas</span></button>
+      <button data-tab="precios"><svg viewBox="0 0 24 24"><path d="M5 5h14M5 10h14M5 15h9M5 20h6"/></svg><span>Listas de precios</span></button>
+      <button data-tab="cargar"><svg viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg><span>Cargar archivos</span></button>
     </nav>
     <div class="user"><span id="userName"></span><span class="av" id="userIni"></span><button class="btn" id="btnSalir">Salir</button></div>
   </header>
@@ -265,7 +317,9 @@ td.sticky{font-size:12.5px}
   <main>
     <!-- VENTAS -->
     <div id="tab-ventas">
+      <div class="ph"><h1>Ventas y bonos</h1><span class="upd" id="updVentas"></span></div>
       <div class="kpis" id="kpis"></div>
+      <div class="minis" id="minis"></div>
       <div class="panel">
         <div class="toolbar">
           <select id="fMes"></select>
@@ -301,7 +355,7 @@ td.sticky{font-size:12.5px}
     <div id="tab-stats" class="hidden">
       <section class="dc">
         <header class="dc-h">
-          <h2>Dashboard comercial</h2>
+          <h2>Dashboard comercial <span class="upd" id="updStats"></span></h2>
           <div class="dc-f">
             <select id="sMes"></select>
             <select id="sMarca"><option value="">Todas las marcas</option></select>
@@ -327,6 +381,7 @@ td.sticky{font-size:12.5px}
 
     <!-- PRECIOS -->
     <div id="tab-precios" class="hidden">
+      <div class="ph"><h1>Listas de precios</h1><span class="upd" id="updPrecios"></span></div>
       <div class="panel">
         <div class="toolbar">
           <select id="pMes"></select>
@@ -342,6 +397,7 @@ td.sticky{font-size:12.5px}
 
     <!-- CARGAR -->
     <div id="tab-cargar" class="hidden">
+      <div class="ph"><h1>Cargar archivos</h1><span class="upd" id="updCargar"></span><button class="btn" id="cExport">Exportar Excel</button></div>
       <div class="panel">
         <div class="card-h">Subir archivos</div>
         <div class="card-b">
@@ -439,9 +495,18 @@ async function cargarTodo() {
     S.metas = mt.map(x => ({ ...x, unidades: Number(x.unidades) }));
     S.precios = p.map(x => ({ ...x, ...numerizar(x) })); S.b2b = b.map(x => ({ ...x, ...numerizar(x) })); S.ventas = v.map(x => ({ ...x, ...numerizar(x) })); S.cargas = c;
     S.idxP = indexarPrecios(S.precios); S.idxB = indexarB2B(S.b2b);
-    recalcular(); llenarFiltros(); renderVentas(); renderPrecios(); renderCargas();
+    recalcular(); llenarFiltros(); renderVentas(); renderPrecios(); renderCargas(); renderActualizado();
     if (!$('tab-stats').classList.contains('hidden')) renderStats();
   } catch (err) { toast('Error al leer la base: ' + err.message, true); }
+}
+function renderActualizado() {
+  const ult = (f) => S.cargas.filter(f).map(c => c.created_at).sort().pop();
+  const txt = (d, q) => d ? `${q}: <b>${new Date(d).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>` : `${q}: sin cargas`;
+  const inf = ult(c => c.tipo === 'Informe de ventas'), lis = ult(c => /^Lista|B2B/.test(c.tipo || '')), pag = ult(c => /^Pago/.test(c.tipo || '')), tod = ult(() => true);
+  $('updVentas').innerHTML = txt(inf, 'Informe de ventas') + ' · ' + txt(pag, 'cartas de pago');
+  $('updStats').innerHTML = txt(inf, 'Última actualización');
+  $('updPrecios').innerHTML = txt(lis, 'Última lista cargada');
+  $('updCargar').innerHTML = txt(tod, 'Última carga');
 }
 function numerizar(o) { const r = {}; for (const [k, v] of Object.entries(o)) if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) && !['folio_venta', 'folio_facturacion', 'rut', 'digito', 'lcdv', 'key_mcv', 'archivo', 'tipo'].includes(k)) r[k] = Number(v); return r; }
 function recalcular() {
@@ -570,6 +635,14 @@ function celdaPagoMarca(v, c) {
   }).join('');
   return `<td class="n">${lineas || '<span class="muted">—</span>'}</td>`;
 }
+function notaBono(c, k) {
+  const p = c.p; if (!p) return '';
+  const lista = `Lista ${mesLabel(p.periodo)} · ${p.version}`;
+  if (k === 'marca') return `Bono TMP ${fmt(p.bono_tmp_iva)} − aporte red ${fmt(p.aporte_red_iva)} = aporte Stellantis ${fmt(c.marca)} (con IVA)\n${lista}`;
+  if (k === 'sant') { const cc = c.clasif === 'CC', b = cc ? p.bono_cc_iva : p.bono_ci_iva; return `Bono ${cc ? 'CC' : 'CI'} ${fmt(b)} − bono TMP ${fmt(p.bono_tmp_iva)} = aporte financiera ${fmt(c.sant)} (con IVA)\n${lista}`; }
+  if (k === 'flota') { const t = (c.tramo || '').toLowerCase(), pc = c.b2b && c.b2b[t + '_stl']; return `Flota ${c.tramo === 'GC' ? 'Grandes Cuentas' : 'Tramo ' + (c.tramo || '').slice(1)}: ${pc != null ? pct(pc) : '% Stellantis'} del precio lista neto + IVA = ${fmt(c.flota)}\n${lista}`; }
+  return '';
+}
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
   const pag = v[campo];
@@ -579,7 +652,7 @@ function renderVentas() {
   const rows = ventasFiltradas();
   const { k, d } = S.sort;
   rows.sort((a, b) => { const x = valorOrden(a, k), y = valorOrden(b, k); return (x > y ? 1 : x < y ? -1 : 0) * d; });
-  renderKpis(rows);
+  renderKpis(rows); renderMinis(rows);
   const arrow = (key) => S.sort.k === key ? (S.sort.d > 0 ? ' ▲' : ' ▼') : '';
   let h = '<thead><tr>' + COLS.map(c => `<th data-k="${c.k}" class="${c.n ? 'n' : ''} ${c.sticky ? 'sticky' : ''}">${c.t}${arrow(c.k)}</th>`).join('')
     + `<th data-k="b_marca" class="n grp-bono">Bono marca (TMP)${arrow('b_marca')}</th><th data-k="b_sant" class="n grp-bono">Santander${arrow('b_sant')}</th><th data-k="b_flota" class="n grp-bono">Flota${arrow('b_flota')}</th><th data-k="b_extra" class="n grp-bono">Adicionales${arrow('b_extra')}</th>`
@@ -588,7 +661,7 @@ function renderVentas() {
   for (const v of rows) {
     const c = S.calc.get(v.folio_venta);
     h += `<tr data-fv="${esc(v.folio_venta)}">` + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}"${col.sticky ? ` title="${esc(v[col.k])}"` : ''}>${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
-    h += celdaBono(v, c.marca, 'pagado_marca') + celdaBono(v, c.sant, 'pagado_santander') + celdaBono(v, c.flota, 'pagado_flota', c.tramo ? 'Tramo ' + (c.tramo === 'GC' ? 'Grandes Cuentas' : c.tramo.slice(1)) : '');
+    h += celdaBono(v, c.marca, 'pagado_marca', notaBono(c, 'marca')) + celdaBono(v, c.sant, 'pagado_santander', notaBono(c, 'sant')) + celdaBono(v, c.flota, 'pagado_flota', notaBono(c, 'flota'));
     { const ex = extrasDe(v).filter(e => Number(e.monto)); const pag = ex.length && ex.every(e => e.pagado);
       h += `<td class="n"><button class="btn-ex ${ex.length ? 'tiene' : ''}" data-ex="${v.folio_venta}" title="${esc(ex.map(e => e.tipo + ': ' + fmt(e.monto) + (e.detalle ? ' · ' + e.detalle : '') + (e.pagado ? ' (pagado)' : '')).join('\n')) || 'Agregar bono adicional'}">${ex.length ? (pag ? '✓ ' : '') + fmt(c.extra) + (ex.length > 1 ? ` (${ex.length})` : '') : '+ Agregar'}</button></td>`; }
     let dif;
@@ -610,6 +683,24 @@ function renderVentas() {
   $('tblVentas').querySelectorAll('button[data-ex]').forEach(b => b.onclick = () => abrirExtras(b.dataset.ex));
   $('tblVentas').querySelectorAll('input.obs').forEach(i => i.onchange = () => guardarVenta(i.dataset.f, { observacion: i.value.trim() || null }));
 }
+function renderMinis(rows) {
+  let pag = 0, pend = 0, rev = 0;
+  for (const v of rows) { const e = estadoVenta(v, S.calc.get(v.folio_venta)); if (e.revisar) rev++; else if (e.todoPagado) pag++; else pend++; }
+  const n = rows.length || 1, a1 = pag / n * 360, a2 = a1 + pend / n * 360;
+  const donut = `<div class="mn-donut" style="background:conic-gradient(var(--ok2) 0 ${a1}deg,var(--amb) ${a1}deg ${a2}deg,var(--bad) ${a2}deg 360deg)"><div><b>${rows.length}</b><small>ventas</small></div></div>
+    <div class="mn-leg">${[['Pagado', pag, 'var(--ok2)'], ['Pendiente', pend, 'var(--amb)'], ['Por revisar', rev, 'var(--bad)']].map(([l, x, cl]) => `<div><i style="background:${cl}"></i>${l}<b>${x}</b><small>${rows.length ? Math.round(x / rows.length * 100) : 0}%</small></div>`).join('')}</div>`;
+  const cm = { Peugeot: 0, Opel: 0, 'Citroën': 0, Otras: 0 };
+  rows.forEach(v => { const k = marcaKey(v.marca); cm[k === 'PEUGEOT' ? 'Peugeot' : k === 'OPEL' ? 'Opel' : k === 'CITROEN' ? 'Citroën' : 'Otras']++; });
+  const mx = Math.max(1, ...Object.values(cm));
+  const barras = `<div class="mn-bars">${Object.entries(cm).map(([k, x]) => `<div title="${k}: ${x} ventas"><b>${x}</b><i style="height:${x / mx * 100}%"></i><span>${k}</span></div>`).join('')}</div>`;
+  const mk = $('fMarca').value, su = $('fSucursal').value, porMes = new Map();
+  for (const v of S.ventas) { if (!coincideMarca(v.marca, mk) || (su && v.sucursal !== su)) continue; const pm = periodoDeVenta(v); if (!pm) continue; const c = S.calc.get(v.folio_venta), e = estadoVenta(v, c); const o = porMes.get(pm) || { t: 0, c: 0 }; o.t += e.pendiente + e.cobrado; o.c += e.cobrado; porMes.set(pm, o); }
+  const meses = [...porMes.keys()].sort().slice(-8), mt = Math.max(1, ...meses.map(m => porMes.get(m).t));
+  const evo = `<div class="mn-bars evo">${meses.map(m => { const o = porMes.get(m); return `<div title="${mesLabel(m)}: bonos ${fmt(o.t)} · cobrado ${fmt(o.c)}"><b>${MM(o.t)}</b><i style="height:${o.t / mt * 100}%"><em style="height:${o.t ? o.c / o.t * 100 : 0}%"></em></i><span>${MESES_NOMBRE[Number(m.slice(5, 7))].slice(0, 3)}</span></div>`; }).join('') || '<div class="dc-empty">Sin datos</div>'}</div>`;
+  $('minis').innerHTML = `<div class="mn"><h3>Ventas por estado de pago</h3><div class="mn-row">${donut}</div></div>
+    <div class="mn"><h3>Ventas por marca</h3>${barras}</div>
+    <div class="mn"><h3>Bonos por mes <small><i class="sw"></i>generado <i class="sw ok"></i>cobrado</small></h3>${evo}</div>`;
+}
 function renderKpis(rows) {
   let m = { p: 0, c: 0 }, s = { p: 0, c: 0 }, f = { p: 0, c: 0 }, x = { p: 0, c: 0 }, rev = 0, n = rows.length, inf = 0;
   for (const v of rows) {
@@ -622,9 +713,9 @@ function renderKpis(rows) {
     inf += v.bono_informe || 0;
   }
   const tot = m.p + m.c + s.p + s.c + f.p + f.c + x.p + x.c, cob = m.c + s.c + f.c + x.c;
-  const card = (l, o) => { const t = o.p + o.c; return `<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(o.p) || '$0'}</div><div class="s">${o.c ? fmt(o.c) + ' ya cobrado' : t ? 'nada cobrado aún' : 'sin bonos'}</div><div class="bar"><i style="width:${t ? (o.c / t * 100) : 0}%"></i></div></div>`; };
+  const card = (l, o) => { const t = o.p + o.c; return `<div class="kpi" title="${l}: pendiente ${fmt(o.p) || '$0'} + cobrado ${fmt(o.c) || '$0'} = ${fmt(t) || '$0'}"><div class="l">${l}</div><div class="v">${fmt(o.p) || '$0'}</div><div class="s">${o.c ? fmt(o.c) + ' ya cobrado' : t ? 'nada cobrado aún' : 'sin bonos'}</div><div class="bar"><i style="width:${t ? (o.c / t * 100) : 0}%"></i></div></div>`; };
   $('kpis').innerHTML =
-    `<div class="kpi"><div class="l">Por cobrar a Stellantis y financieras</div><div class="v">${fmt(tot - cob) || '$0'}</div><div class="s">${fmt(cob) || '$0'} cobrado de ${fmt(tot) || '$0'} en ${n} ${n === 1 ? 'venta' : 'ventas'}</div><div class="bar"><i style="width:${tot ? cob / tot * 100 : 0}%"></i></div></div>`
+    `<div class="kpi" title="Pendiente de cobro = bono marca ${fmt(m.p) || '$0'} + Santander ${fmt(s.p) || '$0'} + flota ${fmt(f.p) || '$0'} + adicionales ${fmt(x.p) || '$0'}&#10;Ya cobrado: ${fmt(cob) || '$0'} · Total bonos: ${fmt(tot) || '$0'}"><div class="l">Por cobrar a Stellantis y financieras</div><div class="v">${fmt(tot - cob) || '$0'}</div><div class="s">${fmt(cob) || '$0'} cobrado de ${fmt(tot) || '$0'} en ${n} ${n === 1 ? 'venta' : 'ventas'}</div><div class="bar"><i style="width:${tot ? cob / tot * 100 : 0}%"></i></div></div>`
     + card('Bono marca', m) + card('Santander', s) + card('Flota', f) + card('Adicionales', x)
     + `<div class="kpi ${rev ? 'alerta' : n ? 'limpio' : ''}"><div class="l">Por revisar</div><div class="v">${rev}</div><div class="s">${rev ? 'no cuadran o falta lista' : n ? 'todo cuadra' : '—'}</div></div>`;
 }
@@ -870,7 +961,7 @@ function filasPreciosExport() {
     'Aporte red': p.aporte_red_iva, 'Aporte Stellantis': p.aporte_stl_iva, 'Financiera CC': p.aporte_fin_cc_iva, 'Financiera CI': p.aporte_fin_ci_iva,
     'B2B T1': b ? b.t1 : p.b2b_t1, 'B2B T1 Stellantis': b ? b.t1_stl : null, 'B2B T2': b ? b.t2 : p.b2b_t2, 'B2B T2 Stellantis': b ? b.t2_stl : null, 'B2B GC': b ? b.gc : p.b2b_gc, 'B2B GC Stellantis': b ? b.gc_stl : null }; });
 }
-$('pExport').onclick = exportarTodo; $('sExport').onclick = exportarTodo;
+$('pExport').onclick = exportarTodo; $('sExport').onclick = exportarTodo; $('cExport').onclick = exportarTodo;
 
 /* ---------- Carga de archivos ---------- */
 const drop = $('drop');
@@ -1019,12 +1110,13 @@ function renderCargas() {
   const inf = S.cargas.filter(c => c.tipo === 'Informe de ventas');
   const porCarga = new Map(); for (const v of S.ventas) if (v.carga_id) porCarga.set(v.carga_id, (porCarga.get(v.carga_id) || 0) + 1);
   $('infResumen').textContent = `${S.ventas.length} ventas en la base`;
-  let h = '<thead><tr><th>Subido</th><th>Archivo</th><th class="n">Ventas</th><th>Usuario</th><th></th></tr></thead><tbody>';
-  if (!inf.length) h += '<tr><td colspan="5" class="empty">Aún no hay informes cargados.</td></tr>';
+  let h = '<thead><tr><th>Subido</th><th>Archivo</th><th class="n">Ventas</th><th>Estado</th><th>Usuario</th><th></th></tr></thead><tbody>';
+  if (!inf.length) h += '<tr><td colspan="6" class="empty">Aún no hay informes cargados.</td></tr>';
   for (const c of inf) {
     const n = porCarga.get(c.id) || 0;
     h += `<tr><td>${new Date(c.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}</td><td title="${esc(c.archivo)}" style="max-width:240px;overflow:hidden;text-overflow:ellipsis">${esc(c.archivo)}</td>
       <td class="n" title="${c.filas ?? '?'} ventas en el archivo; ${n} siguen viniendo de este informe (las demás se actualizaron con un informe posterior)">${n}<span class="muted"> / ${c.filas ?? '?'}</span></td>
+      <td>${!c.filas ? '<span class="st bad">Sin datos</span>' : n ? '<span class="st ok">Procesado</span>' : '<span class="st gris" title="Todas sus ventas fueron actualizadas por un informe más nuevo">Reemplazado</span>'}</td>
       <td>${esc(NOMBRES[c.usuario] || c.usuario)}</td><td style="text-align:right"><button class="btn sm danger" data-del-inf="${c.id}">Borrar</button></td></tr>`;
   }
   $('tblInformes').innerHTML = h + '</tbody>';
