@@ -318,6 +318,9 @@ tr.clic:hover td{background:#f4f8f8}
 .mn-bars>div,.evo2 button{justify-content:flex-end}
 .toolbar select{max-width:132px!important}.toolbar .grow{min-width:90px!important}
 @media (min-width:1350px){#tab-ventas .toolbar{flex-wrap:nowrap}}
+.btn.limpiar{color:var(--ink3);border-color:var(--line)}
+.btn.limpiar.activo{color:#a3271f;border-color:#e6c4c0;background:#fdf3f2;font-weight:600}
+.btn.limpiar.activo:hover{background:#fbe7e5}
 </style>
 </head>
 <body>
@@ -377,6 +380,7 @@ tr.clic:hover td{background:#f4f8f8}
             <option value="rev">Diferencias / revisar</option>
           </select>
           <input id="fTxt" class="grow" placeholder="Buscar cliente, RUT, chasis, folio…">
+          <button class="btn limpiar" id="btnLimpiar" type="button" title="Quitar todos los filtros">✕ Limpiar</button>
           <button class="btn" id="btnRefresh" title="Traer cambios del otro usuario">Actualizar</button>
           <button class="btn" id="btnExport">Exportar Excel</button>
         </div>
@@ -397,6 +401,7 @@ tr.clic:hover td{background:#f4f8f8}
             <select id="sMes"></select>
             <select id="sMarca"><option value="">Todas las marcas</option></select>
             <select id="sSucursal"><option value="">Todas las sucursales</option></select>
+            <button class="btn limpiar" id="sLimpiar" type="button" title="Quitar todos los filtros">✕ Limpiar</button>
             <button class="btn" id="sExport">Exportar Excel</button>
           </div>
         </header>
@@ -1123,6 +1128,17 @@ function recalcular() {
   const ap = () => { $('minis').classList.toggle('hidden', oc); $('btnMinis').textContent = oc ? 'Mostrar gráficos' : 'Ocultar gráficos'; };
   $('btnMinis').onclick = () => { oc = !oc; try { localStorage.setItem('minisOcultos', oc ? '1' : '0'); } catch (e) {} ap(); }; ap(); }
 
+/* ---------- Limpiar filtros ---------- */
+const F_VENTAS = ['fMes', 'fMarca', 'fSucursal', 'fVendedor', 'fBono', 'fEstado', 'fTxt'], F_STATS = ['sMes', 'sMarca', 'sSucursal'];
+function marcarLimpiar() {
+  $('btnLimpiar').classList.toggle('activo', F_VENTAS.some(id => $(id).value));
+  $('sLimpiar').classList.toggle('activo', F_STATS.some(id => $(id).value));
+}
+$('btnLimpiar').onclick = () => { F_VENTAS.forEach(id => { $(id).value = ''; }); renderVentas(); };
+$('sLimpiar').onclick = () => { F_STATS.forEach(id => { $(id).value = ''; }); renderStats(); };
+document.addEventListener('change', (e) => { if ([...F_VENTAS, ...F_STATS].includes(e.target.id)) setTimeout(marcarLimpiar); });
+document.addEventListener('input', (e) => { if (e.target.id === 'fTxt') marcarLimpiar(); });
+
 /* ---------- Tabs ---------- */
 document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'stats') renderStats();
@@ -1261,7 +1277,7 @@ function renderVentas() {
   const rows = ventasFiltradas();
   const { k, d } = S.sort;
   rows.sort((a, b) => { const x = valorOrden(a, k), y = valorOrden(b, k); return (x > y ? 1 : x < y ? -1 : 0) * d; });
-  renderKpis(rows); renderMinis(rows);
+  renderKpis(rows); renderMinis(rows); if (typeof marcarLimpiar === 'function') marcarLimpiar();
   const arrow = (key) => S.sort.k === key ? (S.sort.d > 0 ? ' ▲' : ' ▼') : '';
   let h = '<thead><tr>' + COLS.map(c => `<th data-k="${c.k}" class="${c.n ? 'n' : ''} ${c.sticky ? 'sticky' : ''}">${c.t}${arrow(c.k)}</th>`).join('')
     + `<th data-k="b_marca" class="n grp-bono">Bono marca (TMP)${arrow('b_marca')}</th><th data-k="b_sant" class="n grp-bono">Santander${arrow('b_sant')}</th><th data-k="b_flota" class="n grp-bono">Flota${arrow('b_flota')}</th><th data-k="b_extra" class="n grp-bono">Adicionales${arrow('b_extra')}</th>`
@@ -1356,6 +1372,7 @@ function irVentas(o) {
   $('tblVentas').closest('.tablewrap').scrollTop = 0;
 }
 function renderStatsExtra(rows, mes, mk, su) {
+  if (typeof marcarLimpiar === 'function') setTimeout(marcarLimpiar);
   // Evolución mensual: ignora el filtro de mes para mostrar la tendencia
   const base = S.ventas.filter(v => coincideMarca(v.marca, mk) && (!su || v.sucursal === su));
   const pm = new Map();
