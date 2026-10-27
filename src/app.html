@@ -227,6 +227,8 @@ th{background:#f7f9fa}
 .st.warn{background:#fdf0dc;color:#9a5b00}
 .st.bad{background:#fbe7e5;color:#a3271f}
 .pg .muted{display:inline-block;padding:2px 8px;border-radius:999px;background:#fdf0dc;color:#9a5b00;font-size:12px}
+td.sticky,th.sticky{max-width:190px;width:190px;overflow:hidden;text-overflow:ellipsis}
+td.sticky{font-size:12.5px}
 </style>
 </head>
 <body>
@@ -585,7 +587,7 @@ function renderVentas() {
   if (!rows.length) h += `<tr><td colspan="${COLS.length + 8}" class="empty">${S.ventas.length ? 'No hay ventas con estos filtros.' : 'Aún no hay ventas. Sube el informe en la pestaña “Cargar archivos”.'}</td></tr>`;
   for (const v of rows) {
     const c = S.calc.get(v.folio_venta);
-    h += `<tr data-fv="${esc(v.folio_venta)}">` + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}">${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
+    h += `<tr data-fv="${esc(v.folio_venta)}">` + COLS.map(col => `<td class="${col.n ? 'n' : ''} ${col.sticky ? 'sticky' : ''}"${col.sticky ? ` title="${esc(v[col.k])}"` : ''}>${col.f ? col.f(v) : esc(v[col.k])}</td>`).join('');
     h += celdaBono(v, c.marca, 'pagado_marca') + celdaBono(v, c.sant, 'pagado_santander') + celdaBono(v, c.flota, 'pagado_flota', c.tramo ? 'Tramo ' + (c.tramo === 'GC' ? 'Grandes Cuentas' : c.tramo.slice(1)) : '');
     { const ex = extrasDe(v).filter(e => Number(e.monto)); const pag = ex.length && ex.every(e => e.pagado);
       h += `<td class="n"><button class="btn-ex ${ex.length ? 'tiene' : ''}" data-ex="${v.folio_venta}" title="${esc(ex.map(e => e.tipo + ': ' + fmt(e.monto) + (e.detalle ? ' · ' + e.detalle : '') + (e.pagado ? ' (pagado)' : '')).join('\n')) || 'Agregar bono adicional'}">${ex.length ? (pag ? '✓ ' : '') + fmt(c.extra) + (ex.length > 1 ? ` (${ex.length})` : '') : '+ Agregar'}</button></td>`; }
