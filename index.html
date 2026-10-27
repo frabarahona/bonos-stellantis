@@ -196,14 +196,46 @@ tr.resalta td{background:#fff4c2 !important;transition:background .4s}
 @media (max-width:700px){main{padding:12px} header.top{padding:0 10px;gap:8px} header.top .logo{display:none} nav.tabs{overflow-x:auto;flex:1;min-width:0} nav.tabs button{padding:0 8px;font-size:13px;white-space:nowrap} header.top .user{margin-left:0} header.top .user span{display:none}
   .kpis{grid-template-columns:1fr 1fr}.kpi{border-left:0;border-top:1px solid var(--line2)}.kpi:first-child{grid-column:1/-1;border-top:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* --- Estética Alameda: barra oscura con logo, tarjetas suaves, acento petróleo --- */
+:root{--bg:#eef0f1;--line:#dfe3e6;--line2:#eceff1;--r:8px;--nav:#1d2227}
+#login{background:var(--nav);grid-template-rows:auto auto;align-content:center;gap:26px;justify-items:center}
+.login-logo{height:40px;width:auto}
+.login-card{border:0;border-top:0;box-shadow:0 18px 50px rgba(0,0,0,.35);border-radius:12px}
+.login-card h1{font-size:22px;font-stretch:90%}
+header.top{background:var(--nav);border-bottom:0;height:58px;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+header.top .logo{align-items:center;gap:14px}
+header.top .logo img{height:24px;width:auto;display:block}
+header.top .logo span{color:rgba(255,255,255,.62);font-size:13px;padding-left:14px;border-left:1px solid rgba(255,255,255,.18)}
+nav.tabs button{color:rgba(255,255,255,.66);border-bottom-width:3px;margin-bottom:0}
+nav.tabs button:hover{color:#fff}
+nav.tabs button.on{color:#fff;border-bottom-color:#2fb3a6}
+header.top .user{color:rgba(255,255,255,.8)}
+header.top .user .av{width:32px;height:32px;border-radius:50%;background:#e9ecef;color:var(--nav);display:grid;place-items:center;font-weight:700;font-size:12px}
+header.top .user .btn{background:transparent;color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.22)}
+header.top .user .btn:hover{background:rgba(255,255,255,.08);color:#fff}
+.panel,.kpis,.dc-card,.dc-k,.modal{border-radius:10px}
+.panel,.kpis{border-color:var(--line);box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.kpi:first-child{background:#f4f8f8;border-radius:10px 0 0 10px}
+.btn{border-radius:6px}
+.btn.primary,#btnExport,#pExport,#sExport,#btnRefresh{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover,#btnExport:hover,#pExport:hover,#sExport:hover,#btnRefresh:hover{background:var(--accent-ink)}
+.toolbar select,.toolbar input,.inp{border-radius:6px}
+th{background:#f7f9fa}
+.st.ok,.st.warn,.st.bad{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:1.5}
+.st.ok{background:#e6f4ea;color:#1e6b34}
+.st.warn{background:#fdf0dc;color:#9a5b00}
+.st.bad{background:#fbe7e5;color:#a3271f}
+.pg .muted{display:inline-block;padding:2px 8px;border-radius:999px;background:#fdf0dc;color:#9a5b00;font-size:12px}
 </style>
 </head>
 <body>
 
 <section id="login">
+  <img class="login-logo" src="data:image/png;base64,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" alt="Alameda">
   <form class="login-card" id="loginForm">
-    <h1>Alameda</h1>
-    <p>Bonos Stellantis de Peugeot, Opel y Citroën</p>
+    <h1>Bonos Stellantis</h1>
+    <p>Peugeot, Opel y Citroën</p>
     <label class="f" for="lgUser">Usuario</label>
     <select id="lgUser" class="inp">
       <option value="mario.martinez@alameda.cl">Mario Martínez</option>
@@ -218,14 +250,14 @@ tr.resalta td{background:#fff4c2 !important;transition:background .4s}
 
 <section id="app" class="hidden">
   <header class="top">
-    <div class="logo">Alameda <span>Bonos Stellantis</span></div>
+    <div class="logo"><img src="data:image/png;base64,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" alt="Alameda"><span>Bonos Stellantis</span></div>
     <nav class="tabs">
       <button data-tab="ventas" class="on">Ventas y bonos</button>
       <button data-tab="stats">Estadísticas</button>
       <button data-tab="precios">Listas de precios</button>
       <button data-tab="cargar">Cargar archivos</button>
     </nav>
-    <div class="user"><span id="userName"></span><button class="btn" id="btnSalir">Salir</button></div>
+    <div class="user"><span id="userName"></span><span class="av" id="userIni"></span><button class="btn" id="btnSalir">Salir</button></div>
   </header>
 
   <main>
@@ -927,6 +959,7 @@ async function iniciar() {
   const { data } = await sb.auth.getUser();
   S.user = data.user;
   $('userName').textContent = NOMBRES[S.user.email] || S.user.email;
+  $('userIni').textContent = ($('userName').textContent.match(/\b\p{L}/gu) || []).slice(0, 2).join('').toUpperCase();
   $('login').classList.add('hidden'); $('app').classList.remove('hidden');
   await cargarTodo();
 }
