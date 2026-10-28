@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
             rut: x.rut ? `${x.rut}-${x.digito ?? ''}` : null, marca: x.marca, modelo: x.modelo, version: x.version, chasis: x.chasis, tipo_venta: x.tipo_venta, financiera: C.financieraDe(x),
             forma_pago: C.CLASIF[c.clasif] || c.clasif, tramo_flota: c.tramo || null, unidad_venta_neto: x.unidad_venta, total_con_iva: r0(x.unidad_venta * IVA),
             bono_informe: x.bono_informe, bono_marca_tmp: r0(c.marca), bono_santander: r0(c.sant), bono_flota: r0(c.flota), bonos_adicionales: r0(c.extra), bonos_total: r0(c.total), diferencia: r0(c.dif),
-            marcado_pagado_marca: c.marca ? !!x.pagado_marca : null, marcado_pagado_santander: c.sant ? !!x.pagado_santander : null, marcado_pagado_flota: c.flota ? !!x.pagado_flota : null,
+            marcado_pagado_marca: c.marca ? !!(x.pagado_marca || pm.length) : null, marcado_pagado_santander: c.sant ? !!(x.pagado_santander || pf.length) : null, marcado_pagado_flota: c.flota ? !!(x.pagado_flota || pm.length) : null,
             pagado_marca_sin_iva: pm.reduce((s, y) => s + y.aporte, 0) || null, estado_pago_marca: estado(pm, c, false),
             pagado_financ_sin_iva: pf.reduce((s, y) => s + y.aporte, 0) || null, estado_pago_financ: estado(pf, c, true),
             margen: r0(C.margenDe(x, c)), sin_lista: !c.p, observacion: x.observacion || null,

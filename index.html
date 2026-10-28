@@ -1109,7 +1109,17 @@ function numerizar(o) { const r = {}; for (const [k, v] of Object.entries(o)) if
 function recalcular() {
   S.ventasVin = new Map();
   for (const v of S.ventas) for (const k of clavesVin(v.chasis)) { if (!S.ventasVin.has(k)) S.ventasVin.set(k, []); S.ventasVin.get(k).push(v); }
-  S.calc = new Map(); for (const v of S.ventas) S.calc.set(v.folio_venta, calcularBonos(v, S.idxP, S.idxB)); }
+  S.calc = new Map(); for (const v of S.ventas) S.calc.set(v.folio_venta, calcularBonos(v, S.idxP, S.idxB));
+  // Si llegó la carta de pago (cruzada por VIN), el bono queda pagado aunque no se haya marcado a mano
+  for (const v of S.ventas) {
+    const c = S.calc.get(v.folio_venta), ps = pagosDe(v);
+    const fm = ps.filter(x => !esPagoFinanciamiento(x)), ff = ps.filter(esPagoFinanciamiento);
+    v._carta = {};
+    if (fm.length && c.marca && !v.pagado_marca) { v.pagado_marca = true; v._carta.pagado_marca = fm; }
+    if (fm.length && c.flota && !v.pagado_flota) { v.pagado_flota = true; v._carta.pagado_flota = fm; }
+    if (ff.length && c.sant && !v.pagado_santander) { v.pagado_santander = true; v._carta.pagado_santander = ff; }
+  }
+}
 
 /* ---------- Tooltip rápido ---------- */
 (() => {
@@ -1270,8 +1280,9 @@ function notaBono(c, k) {
 }
 function celdaBono(v, monto, campo, nota) {
   if (!monto) return `<td class="n muted">—</td>`;
-  const pag = v[campo];
-  return `<td class="n"><div class="cell-bono"><span class="${pag ? 'pagado' : ''}" title="${esc(nota || '')}">${fmt(monto)}</span><input type="checkbox" data-f="${v.folio_venta}" data-c="${campo}" ${pag ? 'checked' : ''} title="${pag ? 'Pagado' : 'Marcar como pagado'}"></div></td>`;
+  const pag = v[campo], carta = v._carta && v._carta[campo];
+  const tc = carta ? 'Pagado según carta ' + carta.map(x => x.folio).join(', ') : pag ? 'Pagado' : 'Marcar como pagado';
+  return `<td class="n"><div class="cell-bono"><span class="${pag ? 'pagado' : ''}" title="${esc(nota || '')}">${fmt(monto)}</span><input type="checkbox" data-f="${v.folio_venta}" data-c="${campo}" ${pag ? 'checked' : ''} ${carta ? 'disabled' : ''} title="${esc(tc)}"></div></td>`;
 }
 function renderVentas() {
   const rows = ventasFiltradas();
