@@ -500,7 +500,8 @@ if (!window.supabase || !window.XLSX) {
   throw new Error('librerías no cargadas');
 }
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza', 'fra.barahona@gmail.com': 'Franco Barahona (admin)' };
+const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza', 'fra.barahona@gmail.com': 'Franco Barahona (admin)', 'franco.barahona@automotoralameda.cl': 'Franco Barahona (admin)' };
+const ADMINS = ['fra.barahona@gmail.com', 'franco.barahona@automotoralameda.cl'];
 
 const S = { metas: [], pagos: [], pagosVin: new Map(), user: null, precios: [], b2b: [], ventas: [], cargas: [], idxP: null, idxB: null, calc: new Map(), sort: { k: 'fecha_facturacion', d: -1 }, pendientes: [], ingresos: [] };
 const $ = (id) => document.getElementById(id);
@@ -861,8 +862,8 @@ function renderActividad() {
     : ing.length ? `<table class="top3 act">${ing.slice(0, 5).map(e => `<tr><td style="width:120px">${f(e.at)}</td><td>${esc(NOMBRES[e.email] || e.email || '')}</td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin ingresos registrados.</div>';
 }
 async function cargarIngresos() {
-  const { data, error } = await sb.rpc('ultimos_ingresos', { n: 5 });
-  S.ingresos = error ? null : (data || []);
+  const { data, error } = await sb.rpc('ultimos_ingresos', { n: 50 });
+  S.ingresos = error ? null : (data || []).filter(e => !ADMINS.includes(String(e.email || '').toLowerCase()));
   if (!$('tab-stats').classList.contains('hidden')) renderActividad();
 }
 function renderStatsExtra(rows, mes, mk, su) {
