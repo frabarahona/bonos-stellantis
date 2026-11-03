@@ -321,6 +321,10 @@ tr.clic:hover td{background:#f4f8f8}
 .btn.limpiar{color:var(--ink3);border-color:var(--line)}
 .btn.limpiar.activo{color:#a3271f;border-color:#e6c4c0;background:#fdf3f2;font-weight:600}
 .btn.limpiar.activo:hover{background:#fbe7e5}
+.login-card{position:relative}
+.rueda{position:absolute;right:12px;bottom:12px;width:28px;height:28px;border:0;background:none;padding:4px;cursor:pointer;color:#b6bcc2;border-radius:50%}
+.rueda:hover,.rueda.on{color:var(--accent);background:var(--accent-soft)}
+.rueda svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 </style>
 </head>
 <body>
@@ -331,6 +335,7 @@ tr.clic:hover td{background:#f4f8f8}
     <h1>Bonos Stellantis</h1>
     <p>Peugeot, Opel y Citroën</p>
     <label class="f" for="lgUser">Usuario</label>
+    <input id="lgEmail" type="email" class="inp hidden" placeholder="correo" autocomplete="username">
     <select id="lgUser" class="inp">
       <option value="mario.martinez@alameda.cl">Mario Martínez</option>
       <option value="angelica.arriaza@alameda.cl">Angélica Arriaza</option>
@@ -339,6 +344,7 @@ tr.clic:hover td{background:#f4f8f8}
     <input id="lgPass" type="password" class="inp" autocomplete="current-password" required>
     <button class="btn primary full" type="submit" id="lgBtn">Entrar</button>
     <div class="err" id="lgErr"></div>
+    <button type="button" class="rueda" id="lgAdmin" title="Administrador" aria-label="Administrador"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
   </form>
 </section>
 
@@ -494,7 +500,7 @@ if (!window.supabase || !window.XLSX) {
   throw new Error('librerías no cargadas');
 }
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza' };
+const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza', 'fra.barahona@gmail.com': 'Franco Barahona (admin)' };
 
 const S = { metas: [], pagos: [], pagosVin: new Map(), user: null, precios: [], b2b: [], ventas: [], cargas: [], idxP: null, idxB: null, calc: new Map(), sort: { k: 'fecha_facturacion', d: -1 }, pendientes: [], ingresos: [] };
 const $ = (id) => document.getElementById(id);
@@ -508,11 +514,17 @@ function toast(msg, bad) { const t = document.createElement('div'); t.className 
 /* ---------- Auth ---------- */
 $('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault(); $('lgErr').textContent = ''; $('lgBtn').disabled = true;
-  const { error } = await sb.auth.signInWithPassword({ email: $('lgUser').value, password: $('lgPass').value });
+  const { error } = await sb.auth.signInWithPassword({ email: $('lgEmail').classList.contains('hidden') ? $('lgUser').value : $('lgEmail').value.trim(), password: $('lgPass').value });
   $('lgBtn').disabled = false;
   if (error) { $('lgErr').textContent = /invalid/i.test(error.message) ? 'Clave incorrecta.' : 'No se pudo conectar: ' + error.message; return; }
   iniciar();
 });
+$('lgAdmin').onclick = () => {
+  const admin = !$('lgEmail').classList.toggle('hidden');
+  $('lgUser').classList.toggle('hidden', admin); $('lgAdmin').classList.toggle('on', admin);
+  document.querySelector('label[for=lgUser]').textContent = admin ? 'Correo administrador' : 'Usuario';
+  (admin ? $('lgEmail') : $('lgPass')).focus();
+};
 $('btnSalir').onclick = async () => { await sb.auth.signOut(); location.reload(); };
 (async () => { const { data } = await sb.auth.getSession(); if (data.session) iniciar(); })();
 
