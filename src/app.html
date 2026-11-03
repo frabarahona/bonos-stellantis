@@ -501,7 +501,9 @@ if (!window.supabase || !window.XLSX) {
   document.getElementById('lgBtn').disabled = true;
   throw new Error('librerías no cargadas');
 }
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// La sesión dura mientras la pestaña esté abierta: al cerrar el navegador hay que volver a ingresar con clave
+const almacenSesion = (() => { try { sessionStorage.setItem('_t', '1'); sessionStorage.removeItem('_t'); return sessionStorage; } catch (e) { return undefined; } })();
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storage: almacenSesion, persistSession: true } });
 const NOMBRES = { 'mario.martinez@alameda.cl': 'Mario Martínez', 'angelica.arriaza@alameda.cl': 'Angélica Arriaza', 'fra.barahona@gmail.com': 'Franco Barahona (admin)', 'franco.barahona@automotoralameda.cl': 'Franco Barahona (admin)' };
 const ADMINS = ['fra.barahona@gmail.com', 'franco.barahona@automotoralameda.cl'];
 
