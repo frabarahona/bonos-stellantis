@@ -325,6 +325,8 @@ tr.clic:hover td{background:#f4f8f8}
 .rueda{position:absolute;right:12px;bottom:12px;width:28px;height:28px;border:0;background:none;padding:4px;cursor:pointer;color:#b6bcc2;border-radius:50%}
 .rueda:hover,.rueda.on{color:var(--accent);background:var(--accent-soft)}
 .rueda svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.lnk-sis{display:block;margin:14px auto 0;background:none;border:0;padding:4px 6px;color:var(--ink3);font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.lnk-sis:hover,.lnk-sis.on{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -343,8 +345,8 @@ tr.clic:hover td{background:#f4f8f8}
     <label class="f" for="lgPass">Clave</label>
     <input id="lgPass" type="password" class="inp" autocomplete="current-password" required>
     <button class="btn primary full" type="submit" id="lgBtn">Entrar</button>
+    <button type="button" class="lnk-sis" id="lgAdmin">Acceso sistema</button>
     <div class="err" id="lgErr"></div>
-    <button type="button" class="rueda" id="lgAdmin" title="Administrador" aria-label="Administrador"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
   </form>
 </section>
 
@@ -1073,6 +1075,7 @@ $('lgAdmin').onclick = () => {
   const admin = !$('lgEmail').classList.toggle('hidden');
   $('lgUser').classList.toggle('hidden', admin); $('lgAdmin').classList.toggle('on', admin);
   document.querySelector('label[for=lgUser]').textContent = admin ? 'Correo administrador' : 'Usuario';
+  $('lgAdmin').textContent = admin ? '← Volver a usuarios' : 'Acceso sistema';
   (admin ? $('lgEmail') : $('lgPass')).focus();
 };
 $('btnSalir').onclick = async () => { await sb.auth.signOut(); location.reload(); };
