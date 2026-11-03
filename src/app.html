@@ -432,7 +432,7 @@ tr.clic:hover td{background:#f4f8f8}
           <div class="dc-cell"><h3>Top vendedores <button class="dc-link" id="sVerTodos" type="button">Ver todos</button></h3><div id="sRank" style="overflow-x:auto"></div></div>
         </div>
         <div class="dc-row">
-          <div class="dc-cell"><h3>Últimos ingresos <span>inicios de sesión</span></h3><div id="sIng" style="overflow-x:auto"></div></div>
+          <div class="dc-cell solo-admin hidden" id="cIng"><h3>Últimos ingresos <span>inicios de sesión</span></h3><div id="sIng" style="overflow-x:auto"></div></div>
           <div class="dc-cell"><h3>Últimos movimientos <span>cargas y cambios en ventas</span></h3><div id="sAct" style="overflow-x:auto"></div></div>
         </div>
         <footer class="dc-foot">Mes según fecha de facturación. Facturado = unidad venta + IVA. Margen = unidad venta − precio compra + bonos a cobrar sin IVA.</footer>
@@ -867,6 +867,10 @@ function renderActividad() {
     : ing.length ? `<table class="top3 act">${ing.slice(0, 5).map(e => `<tr><td style="width:120px">${f(e.at)}</td><td>${esc(NOMBRES[e.email] || e.email || '')}</td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin ingresos registrados.</div>';
 }
 async function cargarIngresos() {
+  const admin = ADMINS.includes(String(S.user && S.user.email || '').toLowerCase());
+  $('cIng').classList.toggle('hidden', !admin);
+  $('cIng').closest('.dc-row').classList.toggle('one', !admin);
+  if (!admin) { S.ingresos = []; return; }
   const { data, error } = await sb.rpc('ultimos_ingresos', { n: 50 });
   S.ingresos = error ? null : (data || []).filter(e => !ADMINS.includes(String(e.email || '').toLowerCase()));
   if (!$('tab-stats').classList.contains('hidden')) renderActividad();
