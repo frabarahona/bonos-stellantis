@@ -423,6 +423,9 @@ tr.clic:hover td{background:#f4f8f8}
         <div class="dc-row one">
           <div class="dc-cell"><h3>Top vendedores <button class="dc-link" id="sVerTodos" type="button">Ver todos</button></h3><div id="sRank" style="overflow-x:auto"></div></div>
         </div>
+        <div class="dc-row one">
+          <div class="dc-cell"><h3>Actividad reciente <span>cargas de archivos y cambios en las ventas</span></h3><div id="sAct" style="overflow-x:auto"></div></div>
+        </div>
         <footer class="dc-foot">Mes según fecha de facturación. Facturado = unidad venta + IVA. Margen = unidad venta − precio compra + bonos a cobrar sin IVA.</footer>
       </section>
     </div>
@@ -833,6 +836,14 @@ function irVentas(o) {
   document.querySelector('nav.tabs button[data-tab=ventas]').click(); renderVentas();
   $('tblVentas').closest('.tablewrap').scrollTop = 0;
 }
+function renderActividad() {
+  const ev = [];
+  for (const c of S.cargas) ev.push({ at: c.created_at, u: c.usuario, q: `Subió ${c.tipo || 'archivo'}`, d: c.archivo || '' });
+  for (const v of S.ventas) if (v.editado_at) ev.push({ at: v.editado_at, u: v.editado_por, q: 'Editó una venta', d: `${v.cliente || ''} · folio ${v.folio_venta}` });
+  ev.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  const f = (d) => new Date(d).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  $('sAct').innerHTML = ev.length ? `<table class="top3 act">${ev.slice(0, 15).map(e => `<tr><td class="n" style="width:150px">${f(e.at)}</td><td style="width:170px">${esc(NOMBRES[e.u] || e.u || '')}</td><td>${esc(e.q)}</td><td class="muted" title="${esc(e.d)}" style="max-width:360px;overflow:hidden;text-overflow:ellipsis">${esc(e.d)}</td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin actividad registrada.</div>';
+}
 function renderStatsExtra(rows, mes, mk, su) {
   if (typeof marcarLimpiar === 'function') setTimeout(marcarLimpiar);
   // Evolución mensual: ignora el filtro de mes para mostrar la tendencia
@@ -929,7 +940,7 @@ function renderStats() {
   const ver = S.statsTodos ? rk : rk.slice(0, 3);
   $('sVerTodos').classList.toggle('hidden', rk.length <= 3);
   $('sVerTodos').textContent = S.statsTodos ? 'Ver top 3' : `Ver todos (${rk.length})`;
-  renderStatsExtra(rows, mes, mk, su);
+  renderStatsExtra(rows, mes, mk, su); renderActividad();
   $('sRank').innerHTML = ver.length ? `<table class="top3">${ver.map(([nm, r], i) => `<tr class="clic" data-vend="${esc(nm)}" title="Ver las ventas de ${esc(nm)}"><td class="pos">${i + 1}.</td><td class="nm" title="${esc(nm)}">${esc(nm)}</td><td class="n">${r.n}<span class="u">${r.n === 1 ? 'venta' : 'ventas'}</span></td><td class="n" title="${fmt(r.f)}">${MM(r.f)}</td><td class="n" title="${r.ok ? fmt(r.m) : ''}">${r.ok ? MM(r.m) : '—'}<span class="u">margen</span></td></tr>`).join('')}</table>` : '<div class="dc-empty">Sin ventas.</div>';
   $('sRank').querySelectorAll('[data-vend]').forEach(t => t.onclick = () => irVentas({ vendedor: t.dataset.vend }));
   $('sMarcas').querySelectorAll('[data-mk]').forEach(t => t.onclick = () => { const o = opcionMarca($('sMarca'), t.dataset.mk); $('sMarca').value = $('sMarca').value === o ? '' : o; renderStats(); });
